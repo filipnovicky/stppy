@@ -2,6 +2,9 @@
 
 A Python package for analyzing EEG avalanches with spatial and temporal alignment methods.
 
+**Author:** Filip Novicky (novicky@cs.cas.cz)
+**Repository:** https://github.com/filipnovicky/stppy
+
 ## Features
 
 - **Data I/O**: Load EEG data in various formats (.set, pickle) with flexible directory searching
@@ -56,24 +59,17 @@ pip install stppy[video]
 ```python
 import stppy
 
-# NEW: Simple universal file loading (recursively finds all .set files)
-files = stppy.io.find_eeg_files([
-    '/path/to/control/data',
-    '/path/to/drug/data'
-])
-
-# OLD: Specific directory structure (still supported)
-base_dirs = ['/path/to/Control', '/path/to/Psilocybin']
-conditions = ['Meditation', 'Music', 'Resting state', 'Video']
-files = stppy.io.load_eeg_files(base_dirs, conditions)
+# Find all EEG files (recursively searches directories)
+files = stppy.io.find_eeg_files('/path/to/yourdata')
 
 # Load a single file
 raw = stppy.io.load_eeg_raw(files[0], preload=True)
 
-# Interpolate missing electrodes
+# Interpolate missing electrodes (with optional average reference)
 raw_interp, interp_channels = stppy.preprocessing.interpolate_missing_electrodes(
     raw,
-    positions_file='electrode_positions.json'
+    positions_file='electrode_positions.json',
+    apply_average_reference=True  # Optional: set to True to apply average reference
 )
 
 # Resample to 250 Hz
@@ -115,9 +111,23 @@ peak_avalanches = stppy.detection.convert_to_peaks(filtered_avalanches)
 
 ### 2b. Correlation-Based Burst Detection (Pattern Matching)
 
-After clustering avalanches, you can detect when cluster patterns recur in continuous data:
+**Important:** This is performed AFTER completing the full pipeline (steps 2-4):
+1. Detect avalanches (threshold-based)
+2. Compute similarity matrix
+3. Cluster avalanches
+4. Build cluster templates
+
+The goal is to search for cluster patterns in the **entire continuous dataset**,
+independently of threshold-based detection. This validates whether cluster patterns
+actually appear in the raw data and measures their occurrence rates.
 
 ```python
+# PREREQUISITE: You must have cluster templates from clustering
+# cluster_averages = result from consensus alignment or cluster averaging
+
+# Load continuous EEG data (entire recording, not just detected avalanches)
+continuous_data = raw_250.get_data()  # Shape: (n_electrodes, n_samples)
+
 # Build spatial smoothing matrix from electrode positions
 positions = stppy.io.load_electrode_positions('electrode_positions.json')
 position_array = np.array([positions[ch] for ch in sorted(positions.keys())])
@@ -127,31 +137,36 @@ W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
     k=3.0  # Spatial decay parameter (higher = less smoothing)
 )
 
-# Detect bursts by matching against cluster template
-burst_info = stppy.detection.detect_bursts_by_correlation(
-    continuous_data,      # Shape: (n_electrodes, n_samples)
-    cluster_pattern,      # Template from clustering
-    W_smooth,
-    threshold=0.7,        # Correlation threshold
-    sfreq=250.0,
-    return_correlations=True
-)
+# For each cluster template, detect when it appears in continuous data
+for cluster_id, cluster_template in cluster_averages.items():
+    burst_info = stppy.detection.detect_bursts_by_correlation(
+        continuous_data,      # ENTIRE continuous recording
+        cluster_template,     # Template from clustering
+        W_smooth,
+        threshold=0.7,        # Correlation threshold
+        sfreq=250.0,
+        return_correlations=True
+    )
 
-print(f"Positive bursts: {burst_info['n_positive']}")
-print(f"Negative bursts: {burst_info['n_negative']}")
-print(f"Rate: {burst_info['rate_positive']:.2f} bursts/sec")
+    print(f"Cluster {cluster_id}:")
+    print(f"  Positive bursts: {burst_info['n_positive']}")
+    print(f"  Negative bursts: {burst_info['n_negative']}")
+    print(f"  Rate: {burst_info['rate_positive']:.2f} bursts/sec")
 
-# Compute detailed temporal statistics
-stats = stppy.detection.compute_temporal_statistics(
-    burst_info['correlations'],
-    burst_info['positions'],
-    threshold=0.7,
-    sfreq=250.0
-)
-
-print(f"Mean inter-burst interval: {stats['mean_lag_above']:.2f} sec")
-print(f"Burst rate: {stats['rate_above']:.3f}/sec")
+    # Compute detailed temporal statistics
+    if len(burst_info['correlations']) > 0:
+        stats = stppy.detection.compute_temporal_statistics(
+            burst_info['correlations'],
+            burst_info['positions'],
+            threshold=0.7,
+            sfreq=250.0
+        )
+        print(f"  Mean inter-burst interval: {stats['mean_lag_above']:.2f} sec")
 ```
+
+**Key Point:** This detects cluster patterns ANYWHERE in the continuous data,
+not just at threshold-detected avalanche times. It's independent validation
+that the cluster patterns are real phenomena in your recordings.
 
 See `examples/detect_bursts_correlation.py` for complete workflow.
 

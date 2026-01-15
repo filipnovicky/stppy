@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Filip Novicky", email = "novicky@cs.cas.cz"}
 ]
 keywords = ["eeg", "neuroscience", "avalanches", "dtw", "clustering"]
 classifiers = [
@@ -44,6 +44,6 @@ video = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/stppy"
-Documentation = "https://github.com/yourusername/stppy/blob/main/README.md"
-Repository = "https://github.com/yourusername/stppy.git"
+Homepage = "https://github.com/filipnovicky/stppy"
+Documentation = "https://github.com/filipnovicky/stppy/blob/main/README.md"
+Repository = "https://github.com/filipnovicky/stppy.git"

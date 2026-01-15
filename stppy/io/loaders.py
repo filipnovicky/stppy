@@ -5,7 +5,8 @@ Data loading utilities for STPPY package.
 import pickle
 import glob
 import os
-from typing import List, Tuple, Optional
+import fnmatch
+from typing import List, Tuple, Optional, Union
 import numpy as np
 import mne
 
@@ -46,6 +47,63 @@ def load_eeg_files(base_dirs: List[str], conditions: List[str],
     file_paths.sort()
 
     print(f"Found {len(file_paths)} EEG files")
+    return file_paths
+
+
+def find_eeg_files(paths: Union[str, List[str]], pattern: str = '*.set',
+                   recursive: bool = True) -> List[str]:
+    """
+    Find all EEG files in given directories (simple universal approach).
+
+    Parameters
+    ----------
+    paths : str or list of str
+        Directory path(s) to search for EEG files
+    pattern : str, optional
+        File pattern to match (default: '*.set')
+    recursive : bool, optional
+        Search subdirectories recursively (default: True)
+
+    Returns
+    -------
+    file_paths : list of str
+        All found file paths, sorted
+
+    Examples
+    --------
+    >>> # Single directory, recursive (finds all .set in subdirectories)
+    >>> files = find_eeg_files('/data/eeg_study')
+    >>>
+    >>> # Multiple directories
+    >>> files = find_eeg_files(['/data/control', '/data/drug'])
+    >>>
+    >>> # Different file type
+    >>> files = find_eeg_files('/data', pattern='*.fif')
+    >>>
+    >>> # Non-recursive (only top-level)
+    >>> files = find_eeg_files('/data', recursive=False)
+    """
+    if isinstance(paths, str):
+        paths = [paths]
+
+    file_paths = []
+    for path in paths:
+        if not os.path.exists(path):
+            print(f"Warning: Path does not exist: {path}")
+            continue
+
+        if recursive:
+            # Search all subdirectories
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    if fnmatch.fnmatch(file, pattern):
+                        file_paths.append(os.path.join(root, file))
+        else:
+            # Just the directory itself
+            file_paths.extend(glob.glob(os.path.join(path, pattern)))
+
+    file_paths.sort()
+    print(f"Found {len(file_paths)} files matching '{pattern}'")
     return file_paths
 
 

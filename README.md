@@ -4,14 +4,22 @@ A Python package for analyzing EEG avalanches with spatial and temporal alignmen
 
 ## Features
 
-- **Data I/O**: Load EEG data in various formats (.set, pickle)
+- **Data I/O**: Load EEG data in various formats (.set, pickle) with flexible directory searching
 - **Preprocessing**: Electrode interpolation and resampling
 - **Avalanche Detection**: Threshold-based detection with spatial filtering
 - **Spatial Alignment**: Optimal transport for spatial pattern matching
 - **Temporal Alignment**: Dynamic Time Warping (DTW) for temporal alignment
 - **Clustering**: Hierarchical clustering with consensus building
-- **Visualization**: Topomap plotting using MNE
-- **Analysis**: Metadata linking and statistical analysis
+- **Visualization**:
+  - Topomap plotting using MNE
+  - Video creation from avalanche sequences
+  - Timeline plots with cluster overlays
+  - Correlation matrices between clusters
+  - Raster plots of avalanche occurrences
+- **Analysis**:
+  - Universal metadata system (user-defined fields)
+  - Flexible querying and grouping
+  - Statistical analysis
 
 ## Installation
 
@@ -23,10 +31,20 @@ cd stppy
 pip install -e .
 ```
 
+### With video support (optional)
+
+```bash
+pip install -e ".[video]"
+```
+
 ### Using pip (when published)
 
 ```bash
+# Basic installation
 pip install stppy
+
+# With video support
+pip install stppy[video]
 ```
 
 ## Quick Start
@@ -36,7 +54,13 @@ pip install stppy
 ```python
 import stppy
 
-# Load EEG files
+# NEW: Simple universal file loading (recursively finds all .set files)
+files = stppy.io.find_eeg_files([
+    '/path/to/control/data',
+    '/path/to/drug/data'
+])
+
+# OLD: Specific directory structure (still supported)
 base_dirs = ['/path/to/Control', '/path/to/Psilocybin']
 conditions = ['Meditation', 'Music', 'Resting state', 'Video']
 files = stppy.io.load_eeg_files(base_dirs, conditions)
@@ -141,9 +165,93 @@ fig = stppy.visualization.plot_cluster_average(
     'electrode_positions.json',
     cluster_id=0
 )
+
+# NEW: Plot avalanche timeline (raw data with cluster overlays)
+fig = stppy.visualization.plot_avalanche_timeline(
+    raw_data,
+    avalanche_times,
+    cluster_assignments,
+    channel_idx=0,
+    title="Avalanches Over Time"
+)
+
+# Plot correlation matrix between clusters
+fig = stppy.visualization.plot_cluster_correlations(
+    cluster_averages_dict,
+    method='pearson'
+)
+
+# Create raster plot
+fig = stppy.visualization.plot_avalanche_raster(
+    avalanche_times,
+    cluster_assignments
+)
 ```
 
-### 5. Analyze Metadata
+### 5. Create Videos (Optional - requires opencv-python)
+
+```python
+# Create video from cluster consensus average
+stppy.visualization.create_cluster_video(
+    average,
+    'electrode_positions.json',
+    output_file='cluster_0.mp4',
+    cluster_id=0,
+    fps=5
+)
+
+# Create video from single avalanche
+stppy.visualization.create_avalanche_video(
+    avalanche_arrays[0],
+    'electrode_positions.json',
+    output_file='avalanche_0.mp4'
+)
+
+# Combine multiple videos with titles
+stppy.visualization.combine_videos(
+    ['cluster_0.mp4', 'cluster_1.mp4', 'cluster_2.mp4'],
+    output_file='all_clusters.mp4',
+    titles=['Cluster 0', 'Cluster 1', 'Cluster 2']
+)
+```
+
+### 6. Universal Metadata System
+
+```python
+# NEW: Generic metadata (user defines any fields)
+dataset_metadata = [
+    {'subject': 'S01', 'condition': 'rest', 'age': 25, 'session': 1},
+    {'subject': 'S02', 'condition': 'task', 'age': 30, 'session': 1},
+    {'subject': 'S01', 'condition': 'rest', 'age': 25, 'session': 2}
+]
+
+# Create universal index (links avalanches to datasets and times)
+index = stppy.analysis.create_avalanche_index(
+    all_avalanches,
+    all_avalanche_times,
+    dataset_metadata
+)
+
+# Query avalanches by any field
+s01_avalanches = stppy.analysis.query_avalanches(
+    index,
+    field='subject',
+    value='S01'
+)
+
+# Complex queries with custom functions
+rest_young = stppy.analysis.query_avalanches(
+    index,
+    filter_func=lambda x: x['metadata']['condition'] == 'rest' and
+                          x['metadata']['age'] < 30
+)
+
+# Group by any field
+groups = stppy.analysis.group_by_metadata_field(index, 'condition')
+# Result: {'rest': [0, 2, 5, ...], 'task': [1, 3, 4, ...]}
+```
+
+### 7. Legacy Metadata (Specific Fields - Still Supported)
 
 ```python
 # Link avalanches to metadata

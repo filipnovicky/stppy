@@ -2,6 +2,7 @@
 
 from .loaders import (
     load_eeg_files,
+    find_eeg_files,
     load_eeg_raw,
     load_avalanche_data,
     save_pickle,
@@ -11,6 +12,7 @@ from .loaders import (
 
 __all__ = [
     'load_eeg_files',
+    'find_eeg_files',
     'load_eeg_raw',
     'load_avalanche_data',
     'save_pickle',

@@ -6,7 +6,9 @@ A Python package for analyzing EEG avalanches with spatial and temporal alignmen
 
 - **Data I/O**: Load EEG data in various formats (.set, pickle) with flexible directory searching
 - **Preprocessing**: Electrode interpolation and resampling
-- **Avalanche Detection**: Threshold-based detection with spatial filtering
+- **Avalanche Detection**:
+  - Threshold-based detection with spatial filtering (de novo event detection)
+  - Correlation-based burst detection (pattern matching against templates)
 - **Spatial Alignment**: Optimal transport for spatial pattern matching
 - **Temporal Alignment**: Dynamic Time Warping (DTW) for temporal alignment
 - **Clustering**: Hierarchical clustering with consensus building
@@ -110,6 +112,48 @@ filtered_avalanches, filtered_times = stppy.detection.filter_avalanche_propagati
 # Convert to peak representation
 peak_avalanches = stppy.detection.convert_to_peaks(filtered_avalanches)
 ```
+
+### 2b. Correlation-Based Burst Detection (Pattern Matching)
+
+After clustering avalanches, you can detect when cluster patterns recur in continuous data:
+
+```python
+# Build spatial smoothing matrix from electrode positions
+positions = stppy.io.load_electrode_positions('electrode_positions.json')
+position_array = np.array([positions[ch] for ch in sorted(positions.keys())])
+
+W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
+    position_array,
+    k=3.0  # Spatial decay parameter (higher = less smoothing)
+)
+
+# Detect bursts by matching against cluster template
+burst_info = stppy.detection.detect_bursts_by_correlation(
+    continuous_data,      # Shape: (n_electrodes, n_samples)
+    cluster_pattern,      # Template from clustering
+    W_smooth,
+    threshold=0.7,        # Correlation threshold
+    sfreq=250.0,
+    return_correlations=True
+)
+
+print(f"Positive bursts: {burst_info['n_positive']}")
+print(f"Negative bursts: {burst_info['n_negative']}")
+print(f"Rate: {burst_info['rate_positive']:.2f} bursts/sec")
+
+# Compute detailed temporal statistics
+stats = stppy.detection.compute_temporal_statistics(
+    burst_info['correlations'],
+    burst_info['positions'],
+    threshold=0.7,
+    sfreq=250.0
+)
+
+print(f"Mean inter-burst interval: {stats['mean_lag_above']:.2f} sec")
+print(f"Burst rate: {stats['rate_above']:.3f}/sec")
+```
+
+See `examples/detect_bursts_correlation.py` for complete workflow.
 
 ### 3. Compute Similarity Matrix (All Avalanches)
 

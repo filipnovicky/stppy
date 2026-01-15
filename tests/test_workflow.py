@@ -137,18 +137,19 @@ def test_detection():
     data = np.random.randn(10, 1000)
     data[5, 100:110] = 5  # Add a strong event
 
-    # Test filter creation
+    # Test threshold-based detection
+    print("\n  Threshold-based detection:")
     filter_masks = stppy.detection.create_avalanche_filter([data], [-2, 2])
     assert len(filter_masks) == 1
     assert filter_masks[0].shape == (1000,)
-    print("  ✓ Avalanche filter creation works")
+    print("    ✓ Avalanche filter creation works")
 
     # Test avalanche detection
     all_avalanches, all_times = stppy.detection.detect_avalanches(
         [data], filter_masks, [-2, 2], min_duration=2, verbose=False
     )
     assert len(all_avalanches) == 1
-    print(f"  ✓ Avalanche detection works (found {len(all_avalanches[0])} avalanches)")
+    print(f"    ✓ Avalanche detection works (found {len(all_avalanches[0])} avalanches)")
 
     # Test peak conversion
     if len(all_avalanches[0]) > 0:
@@ -156,7 +157,48 @@ def test_detection():
         assert len(peaks) == 1
         if len(peaks[0]) > 0:
             assert np.all(np.isin(peaks[0][0], [-1, 0, 1]))
-        print("  ✓ Peak conversion works")
+        print("    ✓ Peak conversion works")
+
+    # Test correlation-based detection
+    print("\n  Correlation-based detection:")
+
+    # Create electrode positions for spatial smoothing
+    positions = np.array([[i, 0, 0] for i in range(10)])
+
+    # Test spatial smoothing matrix
+    W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
+        positions, k=3.0
+    )
+    assert W_smooth.shape == (10, 10)
+    assert np.allclose(W_smooth.sum(axis=1), 1.0)  # Rows sum to 1
+    print("    ✓ Spatial smoothing matrix creation works")
+
+    # Test spatiotemporal correlation
+    pattern = np.random.randn(10, 20)
+    window = np.random.randn(10, 20)
+    corr = stppy.detection.spatiotemporal_correlation(pattern, window, W_smooth)
+    assert -1 <= corr <= 1
+    print("    ✓ Spatiotemporal correlation works")
+
+    # Test burst detection by correlation
+    burst_info = stppy.detection.detect_bursts_by_correlation(
+        data, pattern, W_smooth, threshold=0.7, return_correlations=True
+    )
+    assert 'positive_bursts' in burst_info
+    assert 'negative_bursts' in burst_info
+    assert 'correlations' in burst_info
+    print(f"    ✓ Burst detection works (found {burst_info['n_positive']} positive, {burst_info['n_negative']} negative)")
+
+    # Test temporal statistics
+    if len(burst_info['correlations']) > 0:
+        stats = stppy.detection.compute_temporal_statistics(
+            burst_info['correlations'],
+            burst_info['positions'],
+            threshold=0.7
+        )
+        assert 'n_above_threshold' in stats
+        assert 'rate_above' in stats
+        print("    ✓ Temporal statistics computation works")
 
 
 def test_alignment():

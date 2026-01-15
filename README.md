@@ -409,4 +409,4 @@ Contributions are welcome! Please open an issue or submit a pull request.
 
 ## Contact
 
-For questions or issues, please contact: your.email@example.com
+For questions or issues, please contact: novicky@cs.cas.cz

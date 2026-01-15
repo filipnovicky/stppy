@@ -31,25 +31,15 @@ A Python package for analyzing EEG avalanches with spatial and temporal alignmen
 ### From source
 
 ```bash
-git clone https://github.com/yourusername/stppy.git
+git clone https://github.com/filipnovicky/stppy.git
 cd stppy
 pip install -e .
-```
-
-### With video support (optional)
-
-```bash
-pip install -e ".[video]"
 ```
 
 ### Using pip (when published)
 
 ```bash
-# Basic installation
 pip install stppy
-
-# With video support
-pip install stppy[video]
 ```
 
 ## Quick Start
@@ -303,11 +293,7 @@ fig = stppy.visualization.plot_avalanche_raster(
     avalanche_times,
     cluster_assignments
 )
-```
 
-### 7. Create Videos (Optional - requires opencv-python)
-
-```python
 # Create video from cluster consensus average
 stppy.visualization.create_cluster_video(
     average,
@@ -332,7 +318,7 @@ stppy.visualization.combine_videos(
 )
 ```
 
-### 8. Universal Metadata System
+### 7. Universal Metadata System
 
 ```python
 # Generic metadata (user defines any fields)
@@ -368,24 +354,6 @@ groups = stppy.analysis.group_by_metadata_field(index, 'condition')
 # Result: {'rest': [0, 2, 5, ...], 'task': [1, 3, 4, ...]}
 ```
 
-### 8. Legacy Metadata (Specific Fields - Still Supported)
-
-```python
-# Link avalanches to metadata
-links = stppy.analysis.link_avalanches_to_datasets(
-    all_avalanches,
-    all_avalanche_times,
-    metadata
-)
-
-# Analyze cluster composition
-composition = stppy.analysis.analyze_clusters_by_avalanche_metadata(
-    clusters,
-    links,
-    metadata
-)
-```
-
 ## Package Structure
 
 ```
@@ -407,6 +375,7 @@ stppy/
 - matplotlib >= 3.4.0
 - mne >= 1.0.0
 - scikit-learn >= 1.0.0
+- opencv-python >= 4.5.0
 
 ## Development
 

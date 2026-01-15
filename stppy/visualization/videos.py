@@ -1,8 +1,5 @@
 """
 Video creation utilities for avalanche visualization.
-
-Note: This module requires opencv-python (cv2) which is an optional dependency.
-Install with: pip install opencv-python
 """
 
 import numpy as np
@@ -11,27 +8,10 @@ import tempfile
 import os
 from pathlib import Path
 from typing import Optional, List
-
-try:
-    import cv2
-    CV2_AVAILABLE = True
-except ImportError:
-    CV2_AVAILABLE = False
-    print("Warning: opencv-python not installed. Video functions will not work.")
-    print("Install with: pip install opencv-python")
-
+import cv2
 import mne
 from mne.channels import make_dig_montage
 import json
-
-
-def _check_cv2():
-    """Check if cv2 is available and raise informative error if not."""
-    if not CV2_AVAILABLE:
-        raise ImportError(
-            "opencv-python (cv2) is required for video functions but not installed.\n"
-            "Install with: pip install opencv-python"
-        )
 
 
 def create_cluster_video(
@@ -76,7 +56,6 @@ def create_cluster_video(
     ...     fps=5
     ... )
     """
-    _check_cv2()
 
     n_electrodes, n_timepoints = average.shape
 
@@ -229,7 +208,6 @@ def create_avalanche_video(
     ...     output_file='avalanche_0.mp4'
     ... )
     """
-    _check_cv2()
 
     n_electrodes, n_timepoints = avalanche_data.shape
 
@@ -359,7 +337,6 @@ def combine_videos(
     ...     titles=['Cluster 0', 'Cluster 1']
     ... )
     """
-    _check_cv2()
 
     if not video_files:
         print("No video files to combine")

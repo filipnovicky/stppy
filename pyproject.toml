@@ -30,6 +30,7 @@ dependencies = [
     "matplotlib>=3.4.0",
     "mne>=1.0.0",
     "scikit-learn>=1.0.0",
+    "opencv-python>=4.5.0",
 ]
 
 [project.optional-dependencies]
@@ -38,9 +39,6 @@ dev = [
     "pytest-cov>=3.0.0",
     "black>=22.0.0",
     "flake8>=4.0.0",
-]
-video = [
-    "opencv-python>=4.5.0",
 ]
 
 [project.urls]

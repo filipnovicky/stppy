@@ -41,6 +41,8 @@ pip install stppy
 
 ## Quick Start
 
+**Prerequisites:** This package assumes your EEG data has been preprocessed (artifact removal, ICA, bandpass filtering, etc.) before analysis.
+
 ### 1. Load and Preprocess EEG Data
 
 ```python
@@ -50,11 +52,13 @@ import mne
 # Find all EEG files (recursively searches directories)
 files = stppy.io.find_eeg_files('/path/to/yourdata')
 
-# Load a single file
-raw = stppy.io.load_eeg_raw(files[0], preload=True)
+# Create the positions file (use a file with all electrodes present)
+# Note: Some files may have electrodes removed, so find one with complete montage
+raw_complete = stppy.io.load_eeg_raw(files[0], preload=True)  # Check this has all electrodes
+stppy.io.create_electrode_positions_file(raw_complete, 'electrode_positions.json')
 
-# Create the positions file
-stppy.io.create_electrode_positions_file(raw, 'electrode_positions.json')
+# Load a single file for processing
+raw = stppy.io.load_eeg_raw(files[0], preload=True)
 
 # Interpolate missing electrodes (with optional average reference)
 raw_interp, interp_channels = stppy.preprocessing.interpolate_missing_electrodes(

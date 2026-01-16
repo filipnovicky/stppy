@@ -6,6 +6,7 @@ import pickle
 import glob
 import os
 import fnmatch
+import json
 from typing import List, Tuple, Optional, Union
 import numpy as np
 import mne
@@ -240,9 +241,139 @@ def load_electrode_positions(filepath: str) -> dict:
         Dictionary mapping electrode names to position dictionaries
         with 'x', 'y', 'z' coordinates
     """
-    import json
-
     with open(filepath, 'r') as f:
         electrode_data = json.load(f)
 
     return electrode_data
+
+
+def create_electrode_positions_file(
+    source: Union[mne.io.Raw, mne.Epochs, mne.channels.DigMontage],
+    output_file: str = 'electrode_positions.json',
+    channels: Optional[List[str]] = None,
+    overwrite: bool = False
+) -> None:
+    """
+    Create electrode positions JSON file from MNE data with montage.
+
+    IMPORTANT: This function does NOT accept string montage names (like 'standard_1020').
+    You MUST load your data, set the montage, and VERIFY it matches your actual electrode
+    setup before calling this function. This forces you to check electrode positions are
+    correct, which is critical for accurate spatial analysis.
+
+    Parameters
+    ----------
+    source : mne.io.Raw, mne.Epochs, or mne.channels.DigMontage
+        Source of electrode positions. Must have montage already set.
+        - For Raw/Epochs: Use raw.set_montage() first
+        - For DigMontage: Use mne.channels.make_standard_montage() or custom montage
+    output_file : str, default='electrode_positions.json'
+        Output file path for JSON file
+    channels : list of str, optional
+        If provided, only export these specific channels.
+        Useful for filtering to channels actually used in your analysis.
+    overwrite : bool, default=False
+        If False, raises error if output file already exists.
+        Set to True to overwrite existing file.
+
+    Raises
+    ------
+    FileExistsError
+        If output_file exists and overwrite=False
+    ValueError
+        If source has no montage set, or if requested channels not found
+
+    Examples
+    --------
+    >>> # Load data and set montage (VERIFY IT'S CORRECT!)
+    >>> raw = mne.io.read_raw_eeglab('data.set', preload=True)
+    >>> raw.set_montage('standard_1020')
+    >>> raw.plot_sensors()  # VERIFY positions match your hardware!
+    >>>
+    >>> # After verification, create positions file
+    >>> stppy.io.create_electrode_positions_file(raw)
+    >>>
+    >>> # Filter to specific channels
+    >>> channels_used = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4']
+    >>> stppy.io.create_electrode_positions_file(raw, channels=channels_used)
+    >>>
+    >>> # From custom montage
+    >>> montage = mne.channels.make_standard_montage('biosemi64')
+    >>> stppy.io.create_electrode_positions_file(montage)
+
+    Notes
+    -----
+    The output JSON format is:
+    {
+        "Fp1": {"x": -0.029, "y": 0.084, "z": -0.007},
+        "Fp2": {"x": 0.030, "y": 0.085, "z": -0.007},
+        ...
+    }
+
+    This function intentionally does NOT accept string montage names to force
+    users to verify electrode positions are correct before creating the file.
+    """
+    # Check if output file exists
+    if os.path.exists(output_file) and not overwrite:
+        raise FileExistsError(
+            f"Output file '{output_file}' already exists. "
+            f"Set overwrite=True to replace it, or choose a different filename."
+        )
+
+    # Extract montage based on source type
+    if isinstance(source, mne.channels.DigMontage):
+        montage = source
+    elif isinstance(source, (mne.io.BaseRaw, mne.BaseEpochs)):
+        montage = source.get_montage()
+        if montage is None:
+            raise ValueError(
+                "Raw/Epochs object has no montage set. "
+                "Use raw.set_montage() first and verify positions are correct."
+            )
+    else:
+        raise TypeError(
+            f"source must be mne.io.BaseRaw, mne.BaseEpochs, or mne.channels.DigMontage, "
+            f"got {type(source)}. "
+            f"\n\nNOTE: String montage names like 'standard_1020' are NOT accepted. "
+            f"You must load your data, set the montage, and verify it's correct first."
+        )
+
+    # Get positions
+    positions = montage.get_positions()
+    ch_pos = positions['ch_pos']
+
+    if not ch_pos:
+        raise ValueError("Montage has no channel positions.")
+
+    # Filter to specific channels if requested
+    if channels is not None:
+        missing = set(channels) - set(ch_pos.keys())
+        if missing:
+            raise ValueError(
+                f"Requested channels not found in montage: {sorted(missing)}\n"
+                f"Available channels: {sorted(ch_pos.keys())}"
+            )
+        ch_pos = {ch: pos for ch, pos in ch_pos.items() if ch in channels}
+
+    # Convert to package JSON format
+    electrode_data = {}
+    for ch, pos in ch_pos.items():
+        electrode_data[ch] = {
+            'x': float(pos[0]),
+            'y': float(pos[1]),
+            'z': float(pos[2])
+        }
+
+    # Save to file
+    os.makedirs(os.path.dirname(output_file) if os.path.dirname(output_file) else '.', exist_ok=True)
+
+    with open(output_file, 'w') as f:
+        json.dump(electrode_data, f, indent=2)
+
+    print(f"\n✓ Created electrode positions file: {output_file}")
+    print(f"  Channels: {len(electrode_data)}")
+    if channels is not None:
+        print(f"  Filtered to specified channels: {sorted(channels)}")
+    else:
+        print(f"  Channel names: {', '.join(sorted(list(electrode_data.keys())[:10]))}{'...' if len(electrode_data) > 10 else ''}")
+    print(f"\nIMPORTANT: Verify these positions match your actual electrode setup!")

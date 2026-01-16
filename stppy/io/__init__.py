@@ -7,7 +7,8 @@ from .loaders import (
     load_avalanche_data,
     save_pickle,
     load_pickle,
-    load_electrode_positions
+    load_electrode_positions,
+    create_electrode_positions_file
 )
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     'load_avalanche_data',
     'save_pickle',
     'load_pickle',
-    'load_electrode_positions'
+    'load_electrode_positions',
+    'create_electrode_positions_file'
 ]

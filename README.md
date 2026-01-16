@@ -47,16 +47,14 @@ pip install stppy
 import stppy
 import mne
 
-# Create electrode positions file (one-time setup)
-raw = mne.io.read_raw_eeglab('your_data.set', preload=True)
-raw.set_montage('standard_1020')
-stppy.io.create_electrode_positions_file(raw, 'electrode_positions.json')
-
 # Find all EEG files (recursively searches directories)
 files = stppy.io.find_eeg_files('/path/to/yourdata')
 
 # Load a single file
 raw = stppy.io.load_eeg_raw(files[0], preload=True)
+
+# Create the positions file
+stppy.io.create_electrode_positions_file(raw, 'electrode_positions.json')
 
 # Interpolate missing electrodes (with optional average reference)
 raw_interp, interp_channels = stppy.preprocessing.interpolate_missing_electrodes(

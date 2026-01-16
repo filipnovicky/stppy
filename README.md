@@ -215,6 +215,29 @@ aligned, average, info, medoid_idx, counts = stppy.clustering.build_consensus_al
     avalanche_paths=path_matrix,
     similarity_clean=similarity_matrix
 )
+
+# Analyze cluster composition (which datasets contribute avalanches to clusters)
+dataset_metadata = [
+    {'subject': 'S01', 'condition': 'rest', 'task': 'meditation'},
+    {'subject': 'S02', 'condition': 'task', 'task': 'video'},
+    # ... one entry per dataset from Step 1
+]
+
+avalanche_index = stppy.analysis.create_avalanche_index(
+    all_avalanches,        # From Step 2
+    all_avalanche_times,   # From Step 2
+    dataset_metadata
+)
+
+composition = stppy.analysis.analyze_cluster_composition(
+    clusters,
+    avalanche_index,
+    metadata_fields=['subject', 'condition', 'task']
+)
+# Output: "Cluster 0: 150 avalanches"
+#         "  Subject: S01: 90, S02: 60"
+#         "  Condition: rest: 100, task: 50"
+#         "  Task: meditation: 80, video: 70"
 ```
 
 ### 5. Correlation-Based Burst Detection (Pattern Matching)
@@ -236,7 +259,8 @@ W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
     k=3.0  # Spatial decay parameter (higher = less smoothing)
 )
 
-# Process all datasets from Step 1
+# Process all datasets from Step 1 and collect burst statistics
+burst_stats = []
 for dataset_idx, continuous_data in enumerate(datasets):
     print(f"Processing dataset {dataset_idx+1}/{len(datasets)}")
 
@@ -251,18 +275,22 @@ for dataset_idx, continuous_data in enumerate(datasets):
     )
 
     print(f"  Positive bursts: {burst_info['n_positive']}")
-    print(f"  Negative bursts: {burst_info['n_negative']}")
     print(f"  Rate: {burst_info['rate_positive']:.2f} bursts/sec")
 
-    # Compute detailed temporal statistics
-    if len(burst_info['correlations']) > 0:
-        stats = stppy.detection.compute_temporal_statistics(
-            burst_info['correlations'],
-            burst_info['positions'],
-            threshold=0.7,
-            sfreq=250.0
-        )
-        print(f"  Mean inter-burst interval: {stats['mean_lag_above']:.2f} sec")
+    # Collect statistics with metadata
+    burst_stats.append({
+        'dataset_idx': dataset_idx,
+        'metadata': dataset_metadata[dataset_idx],
+        'n_positive': burst_info['n_positive'],
+        'n_negative': burst_info['n_negative'],
+        'rate': burst_info['rate_positive']
+    })
+
+# Summarize burst statistics by metadata category
+summary_subject = stppy.analysis.summarize_burst_statistics(burst_stats, group_by='subject')
+summary_condition = stppy.analysis.summarize_burst_statistics(burst_stats, group_by='condition')
+# Output: "S01: 12.5 bursts/dataset (rate: 0.45 bursts/sec, n=3 datasets)"
+#         "S02: 8.0 bursts/dataset (rate: 0.30 bursts/sec, n=3 datasets)"
 ```
 
 **Key Point:** This detects cluster patterns ANYWHERE in the continuous data,
@@ -310,42 +338,6 @@ stppy.visualization.combine_videos(
     output_file='all_clusters.mp4',
     titles=['Cluster 0', 'Cluster 1', 'Cluster 2']
 )
-```
-
-### 7. Universal Metadata System
-
-```python
-# Generic metadata (user defines any fields)
-dataset_metadata = [
-    {'subject': 'S01', 'condition': 'rest', 'age': 25, 'session': 1},
-    {'subject': 'S02', 'condition': 'task', 'age': 30, 'session': 1},
-    {'subject': 'S01', 'condition': 'rest', 'age': 25, 'session': 2}
-]
-
-# Create universal index (links avalanches to datasets and times)
-index = stppy.analysis.create_avalanche_index(
-    all_avalanches,
-    all_avalanche_times,
-    dataset_metadata
-)
-
-# Query avalanches by any field
-s01_avalanches = stppy.analysis.query_avalanches(
-    index,
-    field='subject',
-    value='S01'
-)
-
-# Complex queries with custom functions
-rest_young = stppy.analysis.query_avalanches(
-    index,
-    filter_func=lambda x: x['metadata']['condition'] == 'rest' and
-                          x['metadata']['age'] < 30
-)
-
-# Group by any field
-groups = stppy.analysis.group_by_metadata_field(index, 'condition')
-# Result: {'rest': [0, 2, 5, ...], 'task': [1, 3, 4, ...]}
 ```
 
 ## Package Structure

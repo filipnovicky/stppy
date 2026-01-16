@@ -6,6 +6,7 @@ Provides generic functions that work with any user-defined metadata fields.
 
 import numpy as np
 from typing import List, Dict, Tuple, Optional, Any
+from collections import defaultdict
 
 
 def create_avalanche_index(
@@ -224,3 +225,183 @@ def group_by_metadata_field(
         print(f"  {key}: {len(indices)} avalanches")
 
     return groups
+
+
+def analyze_cluster_composition(
+    clusters: np.ndarray,
+    avalanche_index: List[Dict],
+    metadata_fields: List[str]
+) -> Dict[int, Dict]:
+    """
+    Analyze which metadata categories contribute avalanches to each cluster.
+
+    For each cluster, count how many avalanches come from each metadata category
+    (e.g., subject, condition, task).
+
+    Parameters
+    ----------
+    clusters : np.ndarray
+        Cluster assignments for each avalanche (from hierarchical clustering)
+    avalanche_index : list of dicts
+        Avalanche index from create_avalanche_index()
+    metadata_fields : list of str
+        Metadata fields to analyze (e.g., ['subject', 'condition', 'task'])
+
+    Returns
+    -------
+    composition : dict
+        Dictionary mapping cluster IDs to their composition:
+        {
+            cluster_id: {
+                'size': 150,
+                'subject': {'S01': 90, 'S02': 60},
+                'subject_pct': {'S01': 60.0, 'S02': 40.0},
+                'condition': {'rest': 100, 'task': 50},
+                'condition_pct': {'rest': 66.7, 'task': 33.3},
+                ...
+            }
+        }
+
+    Examples
+    --------
+    >>> composition = analyze_cluster_composition(
+    ...     clusters,
+    ...     avalanche_index,
+    ...     metadata_fields=['subject', 'condition', 'task']
+    ... )
+    >>>
+    >>> # Print composition for each cluster
+    >>> for cluster_id, stats in composition.items():
+    ...     print(f"Cluster {cluster_id}: {stats['size']} avalanches")
+    ...     print(f"  Subjects: {stats['subject']}")
+    ...     print(f"  Conditions: {stats['condition']}")
+    """
+    unique_clusters = np.unique(clusters)
+    # Filter out noise cluster (-1) if present
+    valid_clusters = unique_clusters[unique_clusters != -1]
+
+    composition = {}
+
+    for cluster_id in valid_clusters:
+        # Get indices of avalanches in this cluster
+        cluster_indices = np.where(clusters == cluster_id)[0]
+        cluster_size = len(cluster_indices)
+
+        cluster_stats = {'size': cluster_size}
+
+        # For each metadata field, count occurrences
+        for field in metadata_fields:
+            counts = defaultdict(int)
+
+            for idx in cluster_indices:
+                if idx < len(avalanche_index):
+                    metadata = avalanche_index[idx].get('metadata')
+                    if metadata and field in metadata:
+                        category = metadata[field]
+                        counts[category] += 1
+
+            # Store counts
+            cluster_stats[field] = dict(counts)
+
+            # Calculate percentages
+            if counts:
+                total = sum(counts.values())
+                percentages = {k: (v/total)*100 for k, v in counts.items()}
+                cluster_stats[f'{field}_pct'] = percentages
+
+        composition[int(cluster_id)] = cluster_stats
+
+    # Print summary
+    print(f"\n=== Cluster Composition Analysis ===")
+    print(f"Analyzed {len(valid_clusters)} clusters")
+    for cluster_id in sorted(composition.keys()):
+        stats = composition[cluster_id]
+        print(f"\nCluster {cluster_id}: {stats['size']} avalanches")
+        for field in metadata_fields:
+            if field in stats and stats[field]:
+                counts_str = ', '.join([f"{k}: {v}" for k, v in sorted(stats[field].items())])
+                print(f"  {field.capitalize()}: {counts_str}")
+
+    return composition
+
+
+def summarize_burst_statistics(
+    burst_stats: List[Dict],
+    group_by: str
+) -> Dict[str, Dict]:
+    """
+    Summarize burst detection statistics by metadata category.
+
+    Parameters
+    ----------
+    burst_stats : list of dicts
+        List of burst statistics for each dataset:
+        [
+            {
+                'dataset_idx': 0,
+                'metadata': {'subject': 'S01', 'condition': 'rest', ...},
+                'n_positive': 10,
+                'n_negative': 5,
+                'rate': 0.5
+            },
+            ...
+        ]
+    group_by : str
+        Metadata field to group by (e.g., 'subject', 'condition')
+
+    Returns
+    -------
+    summary : dict
+        Statistics grouped by the specified field:
+        {
+            'S01': {
+                'n_datasets': 3,
+                'avg_bursts': 12.5,
+                'total_bursts': 37,
+                'avg_rate': 0.45
+            },
+            'S02': {...}
+        }
+
+    Examples
+    --------
+    >>> summary = summarize_burst_statistics(burst_stats, group_by='subject')
+    >>> for category, stats in summary.items():
+    ...     print(f"{category}: {stats['avg_bursts']:.1f} bursts/dataset")
+    """
+    grouped = defaultdict(lambda: {
+        'n_datasets': 0,
+        'total_bursts': 0,
+        'total_rate': 0.0,
+        'bursts_per_dataset': []
+    })
+
+    for entry in burst_stats:
+        metadata = entry.get('metadata', {})
+        category = metadata.get(group_by)
+
+        if category is not None:
+            grouped[category]['n_datasets'] += 1
+            grouped[category]['total_bursts'] += entry.get('n_positive', 0)
+            grouped[category]['total_rate'] += entry.get('rate', 0.0)
+            grouped[category]['bursts_per_dataset'].append(entry.get('n_positive', 0))
+
+    # Calculate averages
+    summary = {}
+    for category, data in grouped.items():
+        n = data['n_datasets']
+        summary[category] = {
+            'n_datasets': n,
+            'total_bursts': data['total_bursts'],
+            'avg_bursts': data['total_bursts'] / n if n > 0 else 0,
+            'avg_rate': data['total_rate'] / n if n > 0 else 0
+        }
+
+    # Print summary
+    print(f"\n=== Burst Statistics Summary (grouped by {group_by}) ===")
+    for category in sorted(summary.keys()):
+        stats = summary[category]
+        print(f"{category}: {stats['avg_bursts']:.1f} bursts/dataset "
+              f"(rate: {stats['avg_rate']:.2f} bursts/sec, n={stats['n_datasets']} datasets)")
+
+    return summary

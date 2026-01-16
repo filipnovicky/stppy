@@ -109,6 +109,7 @@ filtered_avalanches, filtered_times = stppy.detection.filter_avalanche_propagati
 
 # Convert to peak representation
 peak_avalanches = stppy.detection.convert_to_peaks(filtered_avalanches)
+stppy.io.save_pickle(peak_avalanches, 'peak_avalanches.pkl')
 ```
 
 ### 3. Compute Similarity Matrix (All Avalanches)
@@ -118,7 +119,7 @@ peak_avalanches = stppy.detection.convert_to_peaks(filtered_avalanches)
 ```python
 # Load avalanche data (include flipped versions to double dataset size)
 avalanches = stppy.io.load_avalanche_data(
-    'avalanches.pkl',
+    'peak_avalanches.pkl',
     min_time_length=11,
     include_flipped=True  # Adds polarity-flipped versions (positive ↔ negative)
 )

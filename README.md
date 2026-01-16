@@ -116,8 +116,12 @@ peak_avalanches = stppy.detection.convert_to_peaks(filtered_avalanches)
 #### Option A: Serial Computation (Small Datasets < 5000 avalanches)
 
 ```python
-# Load avalanche data
-avalanches = stppy.io.load_avalanche_data('avalanches.pkl', min_time_length=11)
+# Load avalanche data (include flipped versions to double dataset size)
+avalanches = stppy.io.load_avalanche_data(
+    'avalanches.pkl',
+    min_time_length=11,
+    include_flipped=True  # Adds polarity-flipped versions (positive ↔ negative)
+)
 
 # Create distance matrix
 K, channel_names = stppy.utils.create_eeg_ground_metric('electrode_positions.json')

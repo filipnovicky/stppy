@@ -136,7 +136,8 @@ def load_eeg_raw(file_path: str, preload: bool = True,
 
 
 def load_avalanche_data(filepath: str, min_time_length: int = 1,
-                       max_time_length: Optional[int] = None) -> List[np.ndarray]:
+                       max_time_length: Optional[int] = None,
+                       include_flipped: bool = False) -> List[np.ndarray]:
     """
     Load avalanche data from pickle file with optional temporal length filtering.
 
@@ -148,6 +149,10 @@ def load_avalanche_data(filepath: str, min_time_length: int = 1,
         Minimum temporal length required (default: 1)
     max_time_length : int or None, optional
         Maximum temporal length allowed (default: None, no upper limit)
+    include_flipped : bool, optional
+        If True, include polarity-flipped versions of all avalanches (multiplied by -1).
+        This doubles the dataset size and helps find spatiotemporal patterns regardless
+        of activation polarity (default: False)
 
     Returns
     -------
@@ -156,7 +161,8 @@ def load_avalanche_data(filepath: str, min_time_length: int = 1,
 
     Examples
     --------
-    >>> avalanches = load_avalanche_data('data.pkl', min_time_length=11)
+    >>> # Load with flipped versions for clustering
+    >>> avalanches = load_avalanche_data('data.pkl', min_time_length=11, include_flipped=True)
     """
     with open(filepath, 'rb') as f:
         avalanches = pickle.load(f)
@@ -183,6 +189,13 @@ def load_avalanche_data(filepath: str, min_time_length: int = 1,
     print(f"Filtered out {filtered_count_too_short} avalanches with temporal length < {min_time_length}")
     if max_time_length is not None:
         print(f"Filtered out {filtered_count_too_long} avalanches with temporal length > {max_time_length}")
+
+    # Include polarity-flipped versions if requested
+    if include_flipped:
+        original_count = len(avalanche_arrays)
+        flipped_avalanches = [-arr for arr in avalanche_arrays]
+        avalanche_arrays.extend(flipped_avalanches)
+        print(f"Included flipped versions: {len(avalanche_arrays)} total avalanches ({original_count} original + {original_count} flipped)")
 
     return avalanche_arrays
 

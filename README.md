@@ -113,7 +113,7 @@ peak_avalanches = stppy.detection.convert_to_peaks(filtered_avalanches)
 
 ### 3. Compute Similarity Matrix (All Avalanches)
 
-#### Option A: Serial Computation (Small Datasets < 1000 avalanches)
+#### Option A: Serial Computation (Small Datasets < 5000 avalanches)
 
 ```python
 # Load avalanche data
@@ -137,7 +137,7 @@ stppy.io.save_pickle(similarity_matrix, 'similarity_matrix.pkl')
 stppy.io.save_pickle(path_matrix, 'path_matrix.pkl')
 ```
 
-#### Option B: Parallel Block Computation (Large Datasets > 1000 avalanches)
+#### Option B: Parallel Block Computation (Large Datasets > 5000 avalanches)
 
 ```python
 # Step 1: Generate block plan

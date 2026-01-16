@@ -44,44 +44,16 @@ pip install stppy
 
 ## Quick Start
 
-### 0. Create Electrode Positions File (One-time setup)
-
-**IMPORTANT:** Before starting analysis, you must create an `electrode_positions.json` file
-with your electrode positions. This function forces you to verify positions are correct.
+### 1. Load and Preprocess EEG Data
 
 ```python
 import stppy
 import mne
 
-# Load your data
+# Create electrode positions file (one-time setup)
 raw = mne.io.read_raw_eeglab('your_data.set', preload=True)
-
-# Set the montage that matches your hardware setup
-raw.set_montage('standard_1020')  # or 'biosemi64', 'biosemi128', etc.
-
-# CRITICAL: Verify positions match your actual electrode setup!
-raw.plot_sensors()  # Visual check - do these positions look right?
-
-# After verification, create the positions file
+raw.set_montage('standard_1020')
 stppy.io.create_electrode_positions_file(raw, 'electrode_positions.json')
-
-# Optional: Export only channels you'll use in analysis
-channels_used = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4', 'O1', 'O2']
-stppy.io.create_electrode_positions_file(
-    raw,
-    'electrode_positions.json',
-    channels=channels_used,
-    overwrite=True
-)
-```
-
-**Note:** This only needs to be done once per electrode setup. The file can be reused
-for all recordings with the same electrode configuration.
-
-### 1. Load and Preprocess EEG Data
-
-```python
-import stppy
 
 # Find all EEG files (recursively searches directories)
 files = stppy.io.find_eeg_files('/path/to/yourdata')

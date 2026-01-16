@@ -1,11 +1,17 @@
-"""Analysis utilities for avalanche metadata and statistics."""
+"""Universal metadata analysis utilities for avalanche datasets."""
 
 from .metadata import (
-    link_avalanches_to_datasets,
-    analyze_clusters_by_avalanche_metadata
+    create_avalanche_index,
+    query_avalanches,
+    group_by_metadata_field,
+    analyze_cluster_composition,
+    summarize_burst_statistics
 )
 
 __all__ = [
-    'link_avalanches_to_datasets',
-    'analyze_clusters_by_avalanche_metadata'
+    'create_avalanche_index',
+    'query_avalanches',
+    'group_by_metadata_field',
+    'analyze_cluster_composition',
+    'summarize_burst_statistics'
 ]

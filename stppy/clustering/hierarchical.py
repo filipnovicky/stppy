@@ -104,3 +104,88 @@ def simple_hierarchical_clustering(
         print(f"  Loosest cluster: {cluster_info[-1]['tightness']:.3f}")
 
     return cluster_assignments, cluster_info
+
+
+def remove_duplicate_polarities(
+    cluster_averages: Dict[int, np.ndarray],
+    threshold: float = -0.999
+) -> List[int]:
+    """
+    Identify and remove clusters that are polarity-flipped duplicates.
+
+    When include_flipped=True is used during avalanche loading, clusters may form
+    that are identical except for polarity (correlation ≈ -1.0). This function
+    identifies such pairs and returns only one representative from each pair.
+
+    Parameters
+    ----------
+    cluster_averages : dict
+        Dictionary mapping cluster IDs to their consensus averages
+        (from build_consensus_alignment)
+    threshold : float
+        Correlation threshold for identifying duplicates (default: -0.999)
+        Pairs with correlation at or below this are considered duplicates
+
+    Returns
+    -------
+    clusters_to_keep : list of int
+        List of cluster IDs to keep (duplicates removed)
+
+    Examples
+    --------
+    >>> # After building consensus alignments for all clusters
+    >>> cluster_averages = {
+    ...     0: average_0,
+    ...     1: average_1,
+    ...     2: average_2
+    ... }
+    >>> clusters_to_keep = remove_duplicate_polarities(cluster_averages)
+    >>> print(f"Keeping {len(clusters_to_keep)} unique clusters")
+    """
+    if not cluster_averages:
+        return []
+
+    cluster_ids = sorted(cluster_averages.keys())
+    n_clusters = len(cluster_ids)
+
+    if n_clusters == 1:
+        return cluster_ids
+
+    # Flatten each cluster average to 1D for correlation
+    flattened = {}
+    for cid in cluster_ids:
+        avg = cluster_averages[cid]
+        flattened[cid] = avg.flatten()
+
+    # Find duplicate pairs (anti-correlated)
+    to_remove = set()
+
+    for i, cid_a in enumerate(cluster_ids):
+        if cid_a in to_remove:
+            continue
+
+        for cid_b in cluster_ids[i+1:]:
+            if cid_b in to_remove:
+                continue
+
+            # Compute correlation
+            flat_a = flattened[cid_a]
+            flat_b = flattened[cid_b]
+
+            # Pearson correlation
+            corr = np.corrcoef(flat_a, flat_b)[0, 1]
+
+            # If highly anti-correlated, they're duplicates
+            if corr <= threshold:
+                # Keep the one with lower ID, remove the other
+                to_remove.add(cid_b)
+                print(f"  Removing cluster {cid_b} (duplicate polarity of cluster {cid_a}, corr={corr:.4f})")
+
+    clusters_to_keep = [cid for cid in cluster_ids if cid not in to_remove]
+
+    print(f"\n=== Duplicate Polarity Removal ===")
+    print(f"Original clusters: {n_clusters}")
+    print(f"Removed: {len(to_remove)}")
+    print(f"Keeping: {len(clusters_to_keep)}")
+
+    return clusters_to_keep

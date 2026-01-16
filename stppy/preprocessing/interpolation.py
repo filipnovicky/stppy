@@ -12,6 +12,7 @@ def interpolate_missing_electrodes(
     raw_or_epochs: Union[mne.io.Raw, mne.Epochs],
     positions_file: str = 'electrode_positions.json',
     force_interpolate: Optional[List[str]] = None,
+    apply_average_reference: bool = False,
     verbose: bool = True
 ) -> Tuple[Union[mne.io.Raw, mne.Epochs], List[str]]:
     """
@@ -25,6 +26,8 @@ def interpolate_missing_electrodes(
         Path to JSON file with electrode positions
     force_interpolate : list or None
         Channels to force re-interpolation
+    apply_average_reference : bool, default=False
+        If True, apply average reference after interpolation
     verbose : bool
         Print progress
 
@@ -167,5 +170,11 @@ def interpolate_missing_electrodes(
     if verbose:
         print(f"✓ Interpolated {len(successful)} channels")
         print(f"✓ Final data has {len(data_copy.ch_names)} channels in correct order")
+
+    # Apply average reference if requested
+    if apply_average_reference:
+        data_copy.set_eeg_reference('average', projection=True, verbose=False)
+        if verbose:
+            print("✓ Applied average reference")
 
     return data_copy, successful

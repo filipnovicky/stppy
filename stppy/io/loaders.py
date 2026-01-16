@@ -285,17 +285,12 @@ def create_electrode_positions_file(
 
     Examples
     --------
-    >>> # Load data and set montage (VERIFY IT'S CORRECT!)
+    >>> # Load data and set montage
     >>> raw = mne.io.read_raw_eeglab('data.set', preload=True)
     >>> raw.set_montage('standard_1020')
-    >>> raw.plot_sensors()  # VERIFY positions match your hardware!
     >>>
-    >>> # After verification, create positions file
+    >>> # Create positions file
     >>> stppy.io.create_electrode_positions_file(raw)
-    >>>
-    >>> # Filter to specific channels
-    >>> channels_used = ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3', 'P4']
-    >>> stppy.io.create_electrode_positions_file(raw, channels=channels_used)
     >>>
     >>> # From custom montage
     >>> montage = mne.channels.make_standard_montage('biosemi64')

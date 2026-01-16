@@ -190,8 +190,6 @@ stppy.io.save_pickle(similarity_matrix, 'similarity_matrix.pkl')
 stppy.io.save_pickle(path_matrix, 'path_matrix.pkl')
 ```
 
-See `examples/compute_similarity_parallel.py` for a complete parallel workflow script.
-
 ### 4. Cluster Avalanches
 
 ```python
@@ -296,8 +294,6 @@ summary_condition = stppy.analysis.summarize_burst_statistics(burst_stats, group
 **Key Point:** This detects cluster patterns ANYWHERE in the continuous data,
 not just at threshold-detected avalanche times. It's independent validation
 that the cluster patterns are real phenomena in your recordings.
-
-See `examples/detect_bursts_correlation.py` for complete workflow.
 
 ### 6. Visualize Spatiotemporal Patterns
 

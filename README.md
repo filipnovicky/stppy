@@ -205,14 +205,26 @@ clusters, cluster_info = stppy.clustering.simple_hierarchical_clustering(
     min_cluster_size=30
 )
 
-# Build consensus alignment for a cluster
-aligned, average, info, medoid_idx, counts = stppy.clustering.build_consensus_alignment(
-    cluster_id=0,
-    clusters=clusters,
-    avalanche_arrays=avalanches,
-    avalanche_paths=path_matrix,
-    similarity_clean=similarity_matrix
+# Build consensus alignments for all clusters
+cluster_averages = {}
+for cluster_id in range(len(cluster_info)):
+    aligned, average, info, medoid_idx, counts = stppy.clustering.build_consensus_alignment(
+        cluster_id=cluster_id,
+        clusters=clusters,
+        avalanche_arrays=avalanches,
+        avalanche_paths=path_matrix,
+        similarity_clean=similarity_matrix
+    )
+    cluster_averages[cluster_id] = average
+
+# Remove duplicate polarities (if using include_flipped=True in Step 3)
+# Clusters with correlation ≤ -0.999 are polarity-flipped duplicates
+clusters_to_keep = stppy.clustering.remove_duplicate_polarities(
+    cluster_averages,
+    threshold=-0.999
 )
+# Output: "Removing cluster 5 (duplicate polarity of cluster 2, corr=-0.9998)"
+#         "Keeping: 8 unique clusters"
 
 # Analyze cluster composition (which datasets contribute avalanches to clusters)
 dataset_metadata = [
@@ -245,9 +257,6 @@ independently of threshold-based detection. This validates whether cluster patte
 actually appear in the raw data and measures their occurrence rates.
 
 ```python
-# Use cluster_averages from Step 4 (build_consensus_alignment returns average)
-cluster_template = average  # From previous step
-
 # Build spatial smoothing matrix from electrode positions
 positions = stppy.io.load_electrode_positions('electrode_positions.json')
 position_array = np.array([positions[ch] for ch in sorted(positions.keys())])
@@ -257,38 +266,37 @@ W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
     k=3.0  # Spatial decay parameter (higher = less smoothing)
 )
 
-# Process all datasets from Step 1 and collect burst statistics
-burst_stats = []
-for dataset_idx, continuous_data in enumerate(datasets):
-    print(f"Processing dataset {dataset_idx+1}/{len(datasets)}")
+# Detect bursts for each unique cluster (from clusters_to_keep in Step 4)
+for cluster_id in clusters_to_keep:
+    cluster_template = cluster_averages[cluster_id]
+    print(f"\n=== Analyzing Cluster {cluster_id} ===")
 
-    # Detect when cluster template appears in continuous data
-    burst_info = stppy.detection.detect_bursts_by_correlation(
-        continuous_data,      # ENTIRE continuous recording
-        cluster_template,     # Template from Step 4
-        W_smooth,
-        threshold=0.7,        # Correlation threshold
-        sfreq=250.0,
-        return_correlations=True
-    )
+    burst_stats = []
+    for dataset_idx, continuous_data in enumerate(datasets):
+        # Detect when cluster template appears in continuous data
+        burst_info = stppy.detection.detect_bursts_by_correlation(
+            continuous_data,      # ENTIRE continuous recording
+            cluster_template,     # Template from Step 4
+            W_smooth,
+            threshold=0.7,        # Correlation threshold
+            sfreq=250.0,
+            return_correlations=True
+        )
 
-    print(f"  Positive bursts: {burst_info['n_positive']}")
-    print(f"  Rate: {burst_info['rate_positive']:.2f} bursts/sec")
+        # Collect statistics with metadata
+        burst_stats.append({
+            'dataset_idx': dataset_idx,
+            'metadata': dataset_metadata[dataset_idx],
+            'n_positive': burst_info['n_positive'],
+            'n_negative': burst_info['n_negative'],
+            'rate': burst_info['rate_positive']
+        })
 
-    # Collect statistics with metadata
-    burst_stats.append({
-        'dataset_idx': dataset_idx,
-        'metadata': dataset_metadata[dataset_idx],
-        'n_positive': burst_info['n_positive'],
-        'n_negative': burst_info['n_negative'],
-        'rate': burst_info['rate_positive']
-    })
-
-# Summarize burst statistics by metadata category
-summary_subject = stppy.analysis.summarize_burst_statistics(burst_stats, group_by='subject')
-summary_condition = stppy.analysis.summarize_burst_statistics(burst_stats, group_by='condition')
-# Output: "S01: 12.5 bursts/dataset (rate: 0.45 bursts/sec, n=3 datasets)"
-#         "S02: 8.0 bursts/dataset (rate: 0.30 bursts/sec, n=3 datasets)"
+    # Summarize burst statistics by metadata category
+    summary_subject = stppy.analysis.summarize_burst_statistics(burst_stats, group_by='subject')
+    summary_condition = stppy.analysis.summarize_burst_statistics(burst_stats, group_by='condition')
+    # Output: "S01: 12.5 bursts/dataset (rate: 0.45 bursts/sec, n=3 datasets)"
+    #         "S02: 8.0 bursts/dataset (rate: 0.30 bursts/sec, n=3 datasets)"
 ```
 
 **Key Point:** This detects cluster patterns ANYWHERE in the continuous data,

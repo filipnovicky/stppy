@@ -13,7 +13,7 @@ A Python package for analyzing EEG avalanches with spatial and temporal alignmen
   - Threshold-based detection with spatial filtering (de novo event detection)
   - Correlation-based burst detection (pattern matching against templates)
 - **Spatial Alignment**: Optimal transport for spatial pattern matching
-- **Temporal Alignment**: Dynamic Time Warping (DTW) for temporal alignment
+- **Temporal Alignment**: (Subsequence) Dynamic Time Warping (DTW) for temporal alignment
 - **Clustering**: Hierarchical clustering with consensus building
 - **Visualization**:
   - Topomap plotting using MNE

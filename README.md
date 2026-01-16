@@ -223,9 +223,6 @@ actually appear in the raw data and measures their occurrence rates.
 # Use cluster_averages from Step 4 (build_consensus_alignment returns average)
 cluster_template = average  # From previous step
 
-# Load continuous EEG data (entire recording, not just detected avalanches)
-continuous_data = raw_250.get_data()  # Shape: (n_electrodes, n_samples)
-
 # Build spatial smoothing matrix from electrode positions
 positions = stppy.io.load_electrode_positions('electrode_positions.json')
 position_array = np.array([positions[ch] for ch in sorted(positions.keys())])
@@ -235,30 +232,33 @@ W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
     k=3.0  # Spatial decay parameter (higher = less smoothing)
 )
 
-# Detect when cluster template appears in continuous data
-burst_info = stppy.detection.detect_bursts_by_correlation(
-    continuous_data,      # ENTIRE continuous recording
-    cluster_template,     # Template from Step 4
-    W_smooth,
-    threshold=0.7,        # Correlation threshold
-    sfreq=250.0,
-    return_correlations=True
-)
+# Process all datasets from Step 1
+for dataset_idx, continuous_data in enumerate(datasets):
+    print(f"Processing dataset {dataset_idx+1}/{len(datasets)}")
 
-print(f"Cluster 0:")
-print(f"  Positive bursts: {burst_info['n_positive']}")
-print(f"  Negative bursts: {burst_info['n_negative']}")
-print(f"  Rate: {burst_info['rate_positive']:.2f} bursts/sec")
-
-# Compute detailed temporal statistics
-if len(burst_info['correlations']) > 0:
-    stats = stppy.detection.compute_temporal_statistics(
-        burst_info['correlations'],
-        burst_info['positions'],
-        threshold=0.7,
-        sfreq=250.0
+    # Detect when cluster template appears in continuous data
+    burst_info = stppy.detection.detect_bursts_by_correlation(
+        continuous_data,      # ENTIRE continuous recording
+        cluster_template,     # Template from Step 4
+        W_smooth,
+        threshold=0.7,        # Correlation threshold
+        sfreq=250.0,
+        return_correlations=True
     )
-    print(f"  Mean inter-burst interval: {stats['mean_lag_above']:.2f} sec")
+
+    print(f"  Positive bursts: {burst_info['n_positive']}")
+    print(f"  Negative bursts: {burst_info['n_negative']}")
+    print(f"  Rate: {burst_info['rate_positive']:.2f} bursts/sec")
+
+    # Compute detailed temporal statistics
+    if len(burst_info['correlations']) > 0:
+        stats = stppy.detection.compute_temporal_statistics(
+            burst_info['correlations'],
+            burst_info['positions'],
+            threshold=0.7,
+            sfreq=250.0
+        )
+        print(f"  Mean inter-burst interval: {stats['mean_lag_above']:.2f} sec")
 ```
 
 **Key Point:** This detects cluster patterns ANYWHERE in the continuous data,

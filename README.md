@@ -15,16 +15,13 @@ A Python package for analyzing EEG avalanches with spatial and temporal alignmen
 - **Spatial Alignment**: Optimal transport for spatial pattern matching
 - **Temporal Alignment**: (Subsequence) Dynamic Time Warping (DTW) for temporal alignment
 - **Clustering**: Hierarchical clustering with consensus building
-- **Visualization**:
-  - Topomap plotting using MNE
-  - Video creation from avalanche sequences
-  - Timeline plots with cluster overlays
-  - Correlation matrices between clusters
-  - Raster plots of avalanche occurrences
+- **Visualization**: Spatiotemporal patterns as figures and videos
+  - Cluster spatiotemporal patterns (consensus averages)
+  - Single binary avalanches
+  - Original data of backfitted clusters
 - **Analysis**:
   - Universal metadata system (user-defined fields)
   - Flexible querying and grouping
-  - Statistical analysis
 
 ## Installation
 
@@ -262,45 +259,24 @@ that the cluster patterns are real phenomena in your recordings.
 
 See `examples/detect_bursts_correlation.py` for complete workflow.
 
-### 6. Visualize Results
+### 6. Visualize Spatiotemporal Patterns
 
 ```python
-# Plot individual avalanches
-fig = stppy.visualization.plot_avalanche_topomaps(
-    avalanches,
-    'electrode_positions.json',
-    indices=[0, 5, 10]
-)
-
-# Plot cluster average
+# Plot cluster spatiotemporal pattern (consensus average)
 fig = stppy.visualization.plot_cluster_average(
     average,
     'electrode_positions.json',
     cluster_id=0
 )
 
-# Plot avalanche timeline (raw data with cluster overlays)
-fig = stppy.visualization.plot_avalanche_timeline(
-    raw_data,
-    avalanche_times,
-    cluster_assignments,
-    channel_idx=0,
-    title="Avalanches Over Time"
+# Plot single binary avalanches
+fig = stppy.visualization.plot_avalanche_topomaps(
+    avalanches,
+    'electrode_positions.json',
+    indices=[0, 5, 10]
 )
 
-# Plot correlation matrix between clusters
-fig = stppy.visualization.plot_cluster_correlations(
-    cluster_averages_dict,
-    method='pearson'
-)
-
-# Create raster plot
-fig = stppy.visualization.plot_avalanche_raster(
-    avalanche_times,
-    cluster_assignments
-)
-
-# Create video from cluster consensus average
+# Create video from cluster spatiotemporal pattern
 stppy.visualization.create_cluster_video(
     average,
     'electrode_positions.json',
@@ -316,7 +292,7 @@ stppy.visualization.create_avalanche_video(
     output_file='avalanche_0.mp4'
 )
 
-# Combine multiple videos with titles
+# Combine multiple cluster videos
 stppy.visualization.combine_videos(
     ['cluster_0.mp4', 'cluster_1.mp4', 'cluster_2.mp4'],
     output_file='all_clusters.mp4',

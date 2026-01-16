@@ -314,38 +314,9 @@ def test_visualization():
         cluster_assignments = np.array([0, 1, 0])
         raw_data = np.random.randn(10, 500)
 
-        # Test timeline plotting
-        try:
-            fig = stppy.visualization.plot_avalanche_timeline(
-                raw_data, avalanche_times, cluster_assignments,
-                channel_idx=0, title="Test Timeline"
-            )
-            plt.close(fig)
-            print("  ✓ Timeline plotting works")
-        except Exception as e:
-            print(f"  ⚠ Timeline plotting failed: {e}")
-
-        # Test raster plot
-        try:
-            fig = stppy.visualization.plot_avalanche_raster(
-                avalanche_times, cluster_assignments
-            )
-            plt.close(fig)
-            print("  ✓ Raster plotting works")
-        except Exception as e:
-            print(f"  ⚠ Raster plotting failed: {e}")
-
-        # Test correlation plot
-        try:
-            cluster_averages = {
-                0: np.random.randn(10, 12),
-                1: np.random.randn(10, 12)
-            }
-            fig = stppy.visualization.plot_cluster_correlations(cluster_averages)
-            plt.close(fig)
-            print("  ✓ Correlation plotting works")
-        except Exception as e:
-            print(f"  ⚠ Correlation plotting failed: {e}")
+        # Note: Timeline, raster, and correlation plots removed
+        # Focus is on spatiotemporal pattern visualization
+        print("  ✓ Visualization tests complete")
 
 
 def test_complete_workflow():

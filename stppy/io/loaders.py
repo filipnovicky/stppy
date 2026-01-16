@@ -250,7 +250,6 @@ def load_electrode_positions(filepath: str) -> dict:
 def create_electrode_positions_file(
     source: Union[mne.io.Raw, mne.Epochs, mne.channels.DigMontage],
     output_file: str = 'electrode_positions.json',
-    channels: Optional[List[str]] = None,
     overwrite: bool = False
 ) -> None:
     """
@@ -269,9 +268,6 @@ def create_electrode_positions_file(
         - For DigMontage: Use mne.channels.make_standard_montage() or custom montage
     output_file : str, default='electrode_positions.json'
         Output file path for JSON file
-    channels : list of str, optional
-        If provided, only export these specific channels.
-        Useful for filtering to channels actually used in your analysis.
     overwrite : bool, default=False
         If False, raises error if output file already exists.
         Set to True to overwrite existing file.
@@ -340,16 +336,6 @@ def create_electrode_positions_file(
     if not ch_pos:
         raise ValueError("Montage has no channel positions.")
 
-    # Filter to specific channels if requested
-    if channels is not None:
-        missing = set(channels) - set(ch_pos.keys())
-        if missing:
-            raise ValueError(
-                f"Requested channels not found in montage: {sorted(missing)}\n"
-                f"Available channels: {sorted(ch_pos.keys())}"
-            )
-        ch_pos = {ch: pos for ch, pos in ch_pos.items() if ch in channels}
-
     # Convert to package JSON format
     electrode_data = {}
     for ch, pos in ch_pos.items():
@@ -367,8 +353,5 @@ def create_electrode_positions_file(
 
     print(f"\n✓ Created electrode positions file: {output_file}")
     print(f"  Channels: {len(electrode_data)}")
-    if channels is not None:
-        print(f"  Filtered to specified channels: {sorted(channels)}")
-    else:
-        print(f"  Channel names: {', '.join(sorted(list(electrode_data.keys())[:10]))}{'...' if len(electrode_data) > 10 else ''}")
+    print(f"  Channel names: {', '.join(sorted(list(electrode_data.keys())[:10]))}{'...' if len(electrode_data) > 10 else ''}")
     print(f"\nIMPORTANT: Verify these positions match your actual electrode setup!")

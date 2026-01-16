@@ -57,26 +57,33 @@ files = stppy.io.find_eeg_files('/path/to/yourdata')
 raw_complete = stppy.io.load_eeg_raw(files[0], preload=True)  # Check this has all electrodes
 stppy.io.create_electrode_positions_file(raw_complete, 'electrode_positions.json')
 
-# Load a single file for processing
-raw = stppy.io.load_eeg_raw(files[0], preload=True)
+# Process all files
+datasets = []
+for i, file_path in enumerate(files):
+    print(f"Processing {i+1}/{len(files)}: {file_path}")
 
-# Interpolate missing electrodes (with optional average reference)
-raw_interp, interp_channels = stppy.preprocessing.interpolate_missing_electrodes(
-    raw,
-    positions_file='electrode_positions.json',
-    apply_average_reference=True  # Optional: set to True to apply average reference
-)
+    # Load raw data
+    raw = stppy.io.load_eeg_raw(file_path, preload=True)
 
-# Resample to 250 Hz
-raw_250 = stppy.preprocessing.resample_data(raw_interp, 250)
+    # Interpolate missing electrodes (with optional average reference)
+    raw_interp, interp_channels = stppy.preprocessing.interpolate_missing_electrodes(
+        raw,
+        positions_file='electrode_positions.json',
+        apply_average_reference=True,  # Optional: set to True to apply average reference
+        verbose=False
+    )
+
+    # Resample to 250 Hz
+    raw_250 = stppy.preprocessing.resample_data(raw_interp, 250)
+
+    # Get data array and add to datasets
+    data = raw_250.get_data()
+    datasets.append(data)
 ```
 
 ### 2. Detect Avalanches
 
 ```python
-# Get data arrays
-datasets = [raw.get_data() for raw in processed_raws]
-
 # Create avalanche filter
 crossover_thresholds = [-3, 3]
 filter_masks = stppy.detection.create_avalanche_filter(datasets, crossover_thresholds)

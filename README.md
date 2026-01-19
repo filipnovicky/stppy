@@ -178,25 +178,65 @@ plan = stppy.alignment.generate_block_plan(
 )
 # Outputs: "Need to compute 15 blocks"
 
-# Step 2: Compute each block (RUN IN PARALLEL on different machines/cores)
-# Job 0:
-block_0 = stppy.alignment.compute_similarity_block(
+# Step 2: Create a script for each block (RUN IN PARALLEL on different machines/cores)
+# Example: block_000.py
+```
+
+```python
+#!/usr/bin/env python3
+"""Block 000: diagonal block (0, 0) - GPU accelerated"""
+
+import stppy
+import os
+
+# Ensure blocks directory exists
+os.makedirs('./blocks', exist_ok=True)
+
+# Check GPU availability and select compute function
+if stppy.alignment.check_gpu_available():
+    print(f"GPU available: {stppy.alignment.get_device()}")
+    compute_block = stppy.alignment.compute_similarity_block_gpu
+else:
+    print("GPU not available, using CPU")
+    compute_block = stppy.alignment.compute_similarity_block
+
+# Load avalanche data (include flipped versions)
+print("Loading avalanche data...")
+avalanches = stppy.io.load_avalanche_data(
+    './peak_avalanches.pkl',
+    min_time_length=11,
+    include_flipped=True
+)
+print(f"Loaded {len(avalanches)} avalanches (including flipped)")
+
+# Create normalized distance matrix
+print("Creating normalized distance matrix...")
+K, channel_names = stppy.utils.create_eeg_ground_metric('./electrode_positions.json')
+K_norm = stppy.utils.normalize_distance_matrix(K, method='mean')
+
+# Compute block 000 (diagonal block)
+print("Computing block 000...")
+block_0 = compute_block(
     avalanches, K_norm,
     row_start=0, row_end=500,
     col_start=0, col_end=500,
     is_diagonal=True
 )
 stppy.io.save_pickle(block_0, './blocks/block_000.pkl')
+print("Block 000 complete")
+```
 
-# Job 1:
-block_1 = stppy.alignment.compute_similarity_block(
+```python
+# Similarly, create block_001.py, block_002.py, etc. for other blocks
+# Job 1: block_001.py (off-diagonal block)
+block_1 = compute_block(
     avalanches, K_norm,
     row_start=500, row_end=1000,
     col_start=0, col_end=500,
     is_diagonal=False
 )
 stppy.io.save_pickle(block_1, './blocks/block_001.pkl')
-# ... (repeat for all blocks in parallel)
+# ... (create one script per block and run in parallel)
 
 # Step 3: Merge all blocks
 import glob

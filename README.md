@@ -27,10 +27,25 @@ A Python package for analyzing EEG avalanches with spatial and temporal alignmen
 
 ### From source
 
+**Important:** Run these commands in your **terminal/command line**, NOT in a Python interpreter or Jupyter notebook.
+
 ```bash
 git clone https://github.com/filipnovicky/stppy.git
 cd stppy
 pip install -e .
+```
+
+**If you're using Jupyter notebook/lab:**
+```python
+# Option 1: Run with ! prefix in a Jupyter cell
+!git clone https://github.com/filipnovicky/stppy.git
+%cd stppy
+!pip install -e .
+```
+
+```python
+# Option 2: Exit Python/Jupyter and run in terminal
+# Press Ctrl+D or type exit() to leave Python, then run the bash commands above
 ```
 
 ### Using pip (when published)
@@ -38,6 +53,17 @@ pip install -e .
 ```bash
 pip install stppy
 ```
+
+### Troubleshooting
+
+**Error: `SyntaxError: invalid syntax` when running installation commands**
+
+This means you're trying to run shell commands inside Python. These are bash/terminal commands, not Python code.
+
+Solutions:
+1. **Exit Python first**: If you're in a Python interpreter (prompt shows `>>>`), type `exit()` or press `Ctrl+D`, then run the commands in your terminal
+2. **Use Jupyter magic**: If you're in Jupyter, prefix commands with `!` (e.g., `!pip install -e .`)
+3. **Open a terminal**: Use a proper terminal/command prompt window instead of Python
 
 ## Quick Start
 

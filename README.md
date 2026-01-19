@@ -140,6 +140,8 @@ stppy.io.save_pickle(peak_avalanches, './peak_avalanches.pkl')
 
 ### 3. Compute Similarity Matrix (All Avalanches)
 
+**Note:** GPU acceleration is available for both serial and parallel computation. Use `compute_similarity_block_gpu()` or check GPU availability with `stppy.alignment.check_gpu_available()` to automatically select the best compute function.
+
 #### Option A: Serial Computation (Small Datasets < 5000 avalanches)
 
 ```python
@@ -184,7 +186,7 @@ plan = stppy.alignment.generate_block_plan(
 
 ```python
 #!/usr/bin/env python3
-"""Block 000: diagonal block (0, 0) - GPU accelerated"""
+"""Block 000: diagonal block (0, 0)"""
 
 import stppy
 import os

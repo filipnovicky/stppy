@@ -228,27 +228,20 @@ clusters_to_keep = stppy.clustering.remove_duplicate_polarities(
 #         "Keeping: 8 unique clusters"
 
 # Analyze cluster composition (which datasets contribute avalanches to clusters)
-dataset_metadata = [
-    {'subject': 'S01', 'condition': 'rest', 'task': 'meditation'},
-    {'subject': 'S02', 'condition': 'task', 'task': 'video'},
-    # ... one entry per dataset from Step 1
-]
+dataset_names = [os.path.basename(f) for f in files]  # ['S01_rest.set', 'S02_task.set', ...]
 
 avalanche_index = stppy.analysis.create_avalanche_index(
     all_avalanches,        # From Step 2
     all_avalanche_times,   # From Step 2
-    dataset_metadata
+    dataset_names          # Simple filenames
 )
 
 composition = stppy.analysis.analyze_cluster_composition(
     clusters,
-    avalanche_index,
-    metadata_fields=['subject', 'condition', 'task']
+    avalanche_index
 )
 # Output: "Cluster 0: 150 avalanches"
-#         "  Subject: S01: 90, S02: 60"
-#         "  Condition: rest: 100, task: 50"
-#         "  Task: meditation: 80, video: 70"
+#         "  Datasets: S01_rest.set: 90, S02_task.set: 60"
 ```
 
 ### 5. Correlation-Based Burst Detection (Pattern Matching)
@@ -284,20 +277,18 @@ for cluster_id in clusters_to_keep:
             return_correlations=True
         )
 
-        # Collect statistics with metadata
+        # Collect statistics with dataset name
         burst_stats.append({
-            'dataset_idx': dataset_idx,
-            'metadata': dataset_metadata[dataset_idx],
+            'dataset_name': dataset_names[dataset_idx],
             'n_positive': burst_info['n_positive'],
             'n_negative': burst_info['n_negative'],
             'rate': burst_info['rate_positive']
         })
 
-    # Summarize burst statistics by metadata category
-    summary_subject = stppy.analysis.summarize_burst_statistics(burst_stats, group_by='subject')
-    summary_condition = stppy.analysis.summarize_burst_statistics(burst_stats, group_by='condition')
-    # Output: "S01: 12.5 bursts/dataset (rate: 0.45 bursts/sec, n=3 datasets)"
-    #         "S02: 8.0 bursts/dataset (rate: 0.30 bursts/sec, n=3 datasets)"
+    # Summarize burst statistics by dataset
+    summary = stppy.analysis.summarize_burst_statistics(burst_stats)
+    # Output: "S01_rest.set: 10 bursts (rate: 0.50 bursts/sec)"
+    #         "S02_task.set: 8 bursts (rate: 0.30 bursts/sec)"
 ```
 
 **Key Point:** This detects cluster patterns ANYWHERE in the continuous data,

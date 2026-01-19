@@ -14,6 +14,10 @@ def plot_avalanche_topomaps(
     data: List[np.ndarray],
     electrode_positions_file: str,
     indices: Optional[List[int]] = None,
+    clusters: Optional[np.ndarray] = None,
+    cluster_id: Optional[int] = None,
+    n_samples: int = 3,
+    random_seed: Optional[int] = None,
     ncols: int = 10,
     size: float = 2.5,
     vlim: Optional[tuple] = None,
@@ -30,7 +34,18 @@ def plot_avalanche_topomaps(
     electrode_positions_file : str
         Path to electrode positions JSON file
     indices : list of int, optional
-        Specific avalanche indices to plot (default: [0, 1, 2])
+        Specific avalanche indices to plot (manual selection).
+        If provided, clusters/cluster_id are ignored.
+    clusters : np.ndarray, optional
+        Cluster assignments for each avalanche (from clustering).
+        If provided, cluster_id must also be specified.
+    cluster_id : int, optional
+        Which cluster to sample from (0, 1, 2, ... or -1 for noise).
+        Required if clusters is provided. Use clusters=None to sample from all data.
+    n_samples : int
+        Number of avalanches to plot when using cluster sampling (default: 3)
+    random_seed : int, optional
+        Random seed for reproducible sampling
     ncols : int
         Number of columns for topomap layout
     size : float
@@ -44,8 +59,30 @@ def plot_avalanche_topomaps(
 
     Returns
     -------
-    fig : matplotlib Figure
-        The created figure
+    fig : matplotlib Figure or list of Figures
+        The created figure(s)
+
+    Examples
+    --------
+    >>> # Sample from ALL avalanches (no clustering filter)
+    >>> fig = plot_avalanche_topomaps(
+    ...     avalanches, 'positions.json', n_samples=10
+    ... )
+    >>>
+    >>> # Sample 5 avalanches from cluster 0
+    >>> fig = plot_avalanche_topomaps(
+    ...     avalanches, 'positions.json',
+    ...     clusters=clusters, cluster_id=0, n_samples=5
+    ... )
+    >>>
+    >>> # Sample from noise/discarded avalanches
+    >>> fig = plot_avalanche_topomaps(
+    ...     avalanches, 'positions.json',
+    ...     clusters=clusters, cluster_id=-1, n_samples=10
+    ... )
+    >>>
+    >>> # Manual indices (backwards compatible)
+    >>> fig = plot_avalanche_topomaps(avalanches, 'positions.json', indices=[0, 5, 10])
     """
 
     # Load electrode positions
@@ -62,12 +99,44 @@ def plot_avalanche_topomaps(
 
     montage = make_dig_montage(ch_pos=ch_pos, coord_frame='head')
 
-    # Set default indices if none provided
-    if indices is None:
-        indices = [0, 1, 2]
+    # Determine which indices to plot
+    if indices is not None:
+        # Manual indices provided - use them directly
+        valid_indices = [idx for idx in indices if 0 <= idx < len(data)]
+    elif clusters is not None:
+        # Cluster-based sampling - only look at avalanches within specified cluster
+        if cluster_id is None:
+            raise ValueError(
+                "When clusters is provided, cluster_id must be specified. "
+                "Use clusters=None to sample from all avalanches."
+            )
 
-    # Filter valid indices
-    valid_indices = [idx for idx in indices if 0 <= idx < len(data)]
+        cluster_mask = clusters == cluster_id
+        available_indices = np.where(cluster_mask)[0]
+        cluster_label = f"Cluster {cluster_id}" if cluster_id != -1 else "Noise/unassigned"
+
+        if len(available_indices) == 0:
+            print(f"No avalanches found for {cluster_label}")
+            return None
+
+        n_to_sample = min(n_samples, len(available_indices))
+
+        if random_seed is not None:
+            np.random.seed(random_seed)
+
+        valid_indices = np.random.choice(available_indices, size=n_to_sample, replace=False).tolist()
+        print(f"Plotting {n_to_sample} avalanches from {cluster_label} "
+              f"(out of {len(available_indices)} available)")
+    else:
+        # No clusters - sample randomly from ALL avalanches
+        n_to_sample = min(n_samples, len(data))
+
+        if random_seed is not None:
+            np.random.seed(random_seed)
+
+        valid_indices = np.random.choice(len(data), size=n_to_sample, replace=False).tolist()
+        print(f"Plotting {n_to_sample} avalanches from all data "
+              f"(out of {len(data)} available)")
 
     if not valid_indices:
         print("No valid indices to plot")

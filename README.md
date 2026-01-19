@@ -81,7 +81,7 @@ files = stppy.io.find_eeg_files('/path/to/yourdata')
 # Create the positions file (use a file with all electrodes present)
 # Note: Some files may have electrodes removed, so find one with complete montage
 raw_complete = stppy.io.load_eeg_raw(files[0], preload=True)  # Check this has all electrodes
-stppy.io.create_electrode_positions_file(raw_complete, 'electrode_positions.json')
+stppy.io.create_electrode_positions_file(raw_complete, './electrode_positions.json')
 
 # Process all files
 datasets = []
@@ -94,7 +94,7 @@ for i, file_path in enumerate(files):
     # Interpolate missing electrodes (with optional average reference)
     raw_interp, interp_channels = stppy.preprocessing.interpolate_missing_electrodes(
         raw,
-        positions_file='electrode_positions.json',
+        positions_file='./electrode_positions.json',
         apply_average_reference=True,  # Optional: set to True to apply average reference
         verbose=False
     )
@@ -123,19 +123,19 @@ all_avalanches, all_avalanche_times = stppy.detection.detect_avalanches(
 )
 
 # Apply spatial filtering
-K, channel_names = stppy.utils.create_eeg_ground_metric('electrode_positions.json')
+K, channel_names = stppy.utils.create_eeg_ground_metric('./electrode_positions.json')
 
 filtered_avalanches, filtered_times = stppy.detection.filter_avalanche_propagation(
     all_avalanches,
     all_avalanche_times,
     K,
-    'electrode_positions.json',
+    './electrode_positions.json',
     min_active_neighbors=5
 )
 
 # Convert to peak representation
 peak_avalanches = stppy.detection.convert_to_peaks(filtered_avalanches)
-stppy.io.save_pickle(peak_avalanches, 'peak_avalanches.pkl')
+stppy.io.save_pickle(peak_avalanches, './peak_avalanches.pkl')
 ```
 
 ### 3. Compute Similarity Matrix (All Avalanches)
@@ -145,13 +145,13 @@ stppy.io.save_pickle(peak_avalanches, 'peak_avalanches.pkl')
 ```python
 # Load avalanche data (include flipped versions to double dataset size)
 avalanches = stppy.io.load_avalanche_data(
-    'peak_avalanches.pkl',
+    './peak_avalanches.pkl',
     min_time_length=11,
     include_flipped=True  # Adds polarity-flipped versions (positive ↔ negative)
 )
 
 # Create distance matrix
-K, channel_names = stppy.utils.create_eeg_ground_metric('electrode_positions.json')
+K, channel_names = stppy.utils.create_eeg_ground_metric('./electrode_positions.json')
 K_norm = stppy.utils.normalize_distance_matrix(K, method='mean')
 
 # Compute full pairwise similarity matrix
@@ -160,12 +160,12 @@ similarity_matrix, path_matrix = stppy.alignment.compute_full_similarity_matrix(
     K_norm,
     show_progress=True,
     save_interval=100,  # Save checkpoint every 100 pairs
-    checkpoint_file='similarity_checkpoint.pkl'
+    checkpoint_file='./similarity_checkpoint.pkl'
 )
 
 # Save results
-stppy.io.save_pickle(similarity_matrix, 'similarity_matrix.pkl')
-stppy.io.save_pickle(path_matrix, 'path_matrix.pkl')
+stppy.io.save_pickle(similarity_matrix, './similarity_matrix.pkl')
+stppy.io.save_pickle(path_matrix, './path_matrix.pkl')
 ```
 
 #### Option B: Parallel Block Computation (Large Datasets > 5000 avalanches)
@@ -186,7 +186,7 @@ block_0 = stppy.alignment.compute_similarity_block(
     col_start=0, col_end=500,
     is_diagonal=True
 )
-stppy.io.save_pickle(block_0, 'blocks/block_000.pkl')
+stppy.io.save_pickle(block_0, './blocks/block_000.pkl')
 
 # Job 1:
 block_1 = stppy.alignment.compute_similarity_block(
@@ -195,15 +195,15 @@ block_1 = stppy.alignment.compute_similarity_block(
     col_start=0, col_end=500,
     is_diagonal=False
 )
-stppy.io.save_pickle(block_1, 'blocks/block_001.pkl')
+stppy.io.save_pickle(block_1, './blocks/block_001.pkl')
 # ... (repeat for all blocks in parallel)
 
 # Step 3: Merge all blocks
 import glob
-block_files = sorted(glob.glob('blocks/block_*.pkl'))
+block_files = sorted(glob.glob('./blocks/block_*.pkl'))
 merged = stppy.alignment.merge_blocks(
     block_files,
-    output_file='similarity_merged.pkl'
+    output_file='./similarity_merged.pkl'
 )
 
 # Step 4: Reconstruct full matrices
@@ -213,16 +213,16 @@ similarity_matrix, path_matrix = stppy.alignment.reconstruct_full_matrices(
 )
 
 # Save
-stppy.io.save_pickle(similarity_matrix, 'similarity_matrix.pkl')
-stppy.io.save_pickle(path_matrix, 'path_matrix.pkl')
+stppy.io.save_pickle(similarity_matrix, './similarity_matrix.pkl')
+stppy.io.save_pickle(path_matrix, './path_matrix.pkl')
 ```
 
 ### 4. Cluster Avalanches
 
 ```python
 # Load similarity matrix
-similarity_matrix = stppy.io.load_pickle('similarity_matrix.pkl')
-path_matrix = stppy.io.load_pickle('path_matrix.pkl')
+similarity_matrix = stppy.io.load_pickle('./similarity_matrix.pkl')
+path_matrix = stppy.io.load_pickle('./path_matrix.pkl')
 
 # Hierarchical clustering
 clusters, cluster_info = stppy.clustering.simple_hierarchical_clustering(
@@ -278,7 +278,7 @@ actually appear in the raw data and measures their occurrence rates.
 
 ```python
 # Build spatial smoothing matrix from electrode positions
-positions = stppy.io.load_electrode_positions('electrode_positions.json')
+positions = stppy.io.load_electrode_positions('./electrode_positions.json')
 position_array = np.array([positions[ch] for ch in sorted(positions.keys())])
 
 W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
@@ -327,14 +327,14 @@ that the cluster patterns are real phenomena in your recordings.
 # Plot cluster spatiotemporal pattern (consensus average)
 fig = stppy.visualization.plot_cluster_average(
     average,
-    'electrode_positions.json',
+    './electrode_positions.json',
     cluster_id=0
 )
 
 # Sample from ALL avalanches (no clustering filter)
 fig = stppy.visualization.plot_avalanche_topomaps(
     avalanches,
-    'electrode_positions.json',
+    './electrode_positions.json',
     n_samples=10,
     random_seed=42
 )
@@ -342,7 +342,7 @@ fig = stppy.visualization.plot_avalanche_topomaps(
 # Sample 5 avalanches from cluster 0
 fig = stppy.visualization.plot_avalanche_topomaps(
     avalanches,
-    'electrode_positions.json',
+    './electrode_positions.json',
     clusters=clusters,
     cluster_id=0,
     n_samples=5
@@ -351,7 +351,7 @@ fig = stppy.visualization.plot_avalanche_topomaps(
 # Sample from noise/discarded avalanches (cluster = -1)
 fig = stppy.visualization.plot_avalanche_topomaps(
     avalanches,
-    'electrode_positions.json',
+    './electrode_positions.json',
     clusters=clusters,
     cluster_id=-1,
     n_samples=10
@@ -360,15 +360,15 @@ fig = stppy.visualization.plot_avalanche_topomaps(
 # Manual indices (backwards compatible)
 fig = stppy.visualization.plot_avalanche_topomaps(
     avalanches,
-    'electrode_positions.json',
+    './electrode_positions.json',
     indices=[0, 5, 10]
 )
 
 # Create video from cluster spatiotemporal pattern
 stppy.visualization.create_cluster_video(
     average,
-    'electrode_positions.json',
-    output_file='cluster_0.mp4',
+    './electrode_positions.json',
+    output_file='./cluster_0.mp4',
     cluster_id=0,
     fps=5
 )
@@ -376,14 +376,14 @@ stppy.visualization.create_cluster_video(
 # Create video from single avalanche
 stppy.visualization.create_avalanche_video(
     avalanche_arrays[0],
-    'electrode_positions.json',
-    output_file='avalanche_0.mp4'
+    './electrode_positions.json',
+    output_file='./avalanche_0.mp4'
 )
 
 # Combine multiple cluster videos
 stppy.visualization.combine_videos(
-    ['cluster_0.mp4', 'cluster_1.mp4', 'cluster_2.mp4'],
-    output_file='all_clusters.mp4',
+    ['./cluster_0.mp4', './cluster_1.mp4', './cluster_2.mp4'],
+    output_file='./all_clusters.mp4',
     titles=['Cluster 0', 'Cluster 1', 'Cluster 2']
 )
 ```

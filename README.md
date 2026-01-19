@@ -305,22 +305,29 @@ fig = stppy.visualization.plot_cluster_average(
     cluster_id=0
 )
 
-# Plot avalanches from a specific cluster (random sample)
+# Sample from ALL avalanches (no clustering filter)
+fig = stppy.visualization.plot_avalanche_topomaps(
+    avalanches,
+    'electrode_positions.json',
+    n_samples=10,
+    random_seed=42
+)
+
+# Sample 5 avalanches from cluster 0
 fig = stppy.visualization.plot_avalanche_topomaps(
     avalanches,
     'electrode_positions.json',
     clusters=clusters,
     cluster_id=0,
-    n_samples=5,
-    random_seed=42
+    n_samples=5
 )
 
-# Plot avalanches from any cluster (including noise/unassigned)
+# Sample from noise/discarded avalanches (cluster = -1)
 fig = stppy.visualization.plot_avalanche_topomaps(
     avalanches,
     'electrode_positions.json',
     clusters=clusters,
-    cluster_id=None,  # Sample from all
+    cluster_id=-1,
     n_samples=10
 )
 

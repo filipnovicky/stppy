@@ -140,8 +140,6 @@ stppy.io.save_pickle(peak_avalanches, './peak_avalanches.pkl')
 
 ### 3. Compute Similarity Matrix (All Avalanches)
 
-**Note:** GPU acceleration is available for both serial and parallel computation. Use `compute_similarity_block_gpu()` or check GPU availability with `stppy.alignment.check_gpu_available()` to automatically select the best compute function.
-
 #### Option A: Serial Computation (Small Datasets < 5000 avalanches)
 
 ```python
@@ -194,14 +192,6 @@ import os
 # Ensure blocks directory exists
 os.makedirs('./blocks', exist_ok=True)
 
-# Check GPU availability and select compute function
-if stppy.alignment.check_gpu_available():
-    print(f"GPU available: {stppy.alignment.get_device()}")
-    compute_block = stppy.alignment.compute_similarity_block_gpu
-else:
-    print("GPU not available, using CPU")
-    compute_block = stppy.alignment.compute_similarity_block
-
 # Load avalanche data (include flipped versions)
 print("Loading avalanche data...")
 avalanches = stppy.io.load_avalanche_data(
@@ -218,7 +208,7 @@ K_norm = stppy.utils.normalize_distance_matrix(K, method='mean')
 
 # Compute block 000 (diagonal block)
 print("Computing block 000...")
-block_0 = compute_block(
+block_0 = stppy.alignment.compute_similarity_block(
     avalanches, K_norm,
     row_start=0, row_end=500,
     col_start=0, col_end=500,
@@ -231,7 +221,7 @@ print("Block 000 complete")
 ```python
 # Similarly, create block_001.py, block_002.py, etc. for other blocks
 # Job 1: block_001.py (off-diagonal block)
-block_1 = compute_block(
+block_1 = stppy.alignment.compute_similarity_block(
     avalanches, K_norm,
     row_start=500, row_end=1000,
     col_start=0, col_end=500,

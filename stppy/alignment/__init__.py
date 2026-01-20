@@ -18,13 +18,6 @@ from .similarity import (
     get_similarity_from_blocks,
     get_path_from_blocks
 )
-from .gpu import (
-    check_gpu_available,
-    get_device,
-    compute_similarity_block_gpu,
-    spatial_alignment_distance_batch_gpu,
-    dtw_on_similarity_matrix_gpu
-)
 
 __all__ = [
     'spatial_alignment_distance',
@@ -38,11 +31,5 @@ __all__ = [
     'merge_blocks',
     'reconstruct_full_matrices',
     'get_similarity_from_blocks',
-    'get_path_from_blocks',
-    # GPU functions
-    'check_gpu_available',
-    'get_device',
-    'compute_similarity_block_gpu',
-    'spatial_alignment_distance_batch_gpu',
-    'dtw_on_similarity_matrix_gpu'
+    'get_path_from_blocks'
 ]

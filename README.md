@@ -235,9 +235,9 @@ path_matrix = stppy.io.load_pickle('./path_matrix.pkl')
 # Hierarchical clustering
 clusters, cluster_info = stppy.clustering.simple_hierarchical_clustering(
     similarity_matrix,
-    threshold=3.5, # Arbitrary parameter
+    threshold=3.5, # Arbitrary free parameter
     method='average',
-    min_cluster_size=30 # Arbitrary parameter
+    min_cluster_size=30 # Arbitrary free parameter
 )
 
 # Build consensus alignments for all clusters
@@ -275,7 +275,7 @@ composition = stppy.analysis.analyze_cluster_composition(
     avalanche_index
 )
 # Output: "Cluster 0: 150 avalanches"
-#         "  Datasets: S01_rest.set: 90, S02_task.set: 60"
+#         "  Datasets: S01_rest.set: 15, S02_task.set: 12..."
 ```
 
 ### 5. Detect Cluster Bursts in Continuous Data
@@ -290,7 +290,7 @@ position_array = np.array([positions[ch] for ch in sorted(positions.keys())])
 
 W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
     position_array,
-    k=3.0  # Spatial decay parameter (higher = less smoothing)
+    k=10.0  # Spatial decay parameter (higher = less smoothing)
 )
 
 # Collect activation times for each cluster
@@ -347,17 +347,6 @@ Cluster 0: 15 bursts
 ### 6. Visualize Spatiotemporal Patterns
 
 ```python
-# Create video showing all bursts from a cluster
-stppy.visualization.create_cluster_bursts_video(
-    bursts_by_cluster[0],  # All bursts for cluster 0
-    datasets,
-    dataset_names=[os.path.basename(f) for f in files],
-    './electrode_positions.json',
-    output_file='./cluster_0_all_bursts.mp4',
-    cluster_id=0,
-    fps=10
-)
-
 # Plot cluster spatiotemporal pattern (consensus average)
 fig = stppy.visualization.plot_cluster_average(
     average,
@@ -420,6 +409,17 @@ stppy.visualization.combine_videos(
     output_file='./all_clusters.mp4',
     titles=['Cluster 0', 'Cluster 1', 'Cluster 2']
 )
+
+# Create video showing all bursts from a cluster
+stppy.visualization.create_cluster_bursts_video(
+    bursts_by_cluster[0],  # All bursts for cluster 0
+    datasets,
+    dataset_names=[os.path.basename(f) for f in files],
+    './electrode_positions.json',
+    output_file='./cluster_0_all_bursts.mp4',
+    cluster_id=0,
+    fps=10
+)
 ```
 
 ## Package Structure
@@ -464,7 +464,7 @@ pytest tests/
 If you use this package in your research, please cite:
 
 ```
-[Your citation here]
+Recurring Spatiotemporal Patterns in Human EEG Reveal Psilocybin-Induced Shift from Rotating to Stable Propagation
 ```
 
 ## License

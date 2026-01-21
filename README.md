@@ -357,6 +357,17 @@ for cluster_id, bursts in bursts_by_cluster.items():
         print(f"  {burst['dataset']}: "
               f"{burst['start_time']:.3f}s - {burst['end_time']:.3f}s "
               f"({burst['length']} activations)")
+
+# Create video showing all bursts from a cluster
+stppy.visualization.create_cluster_bursts_video(
+    bursts_by_cluster[0],  # All bursts for cluster 0
+    datasets,
+    dataset_names=[os.path.basename(f) for f in files],
+    './electrode_positions.json',
+    output_file='./cluster_0_all_bursts.mp4',
+    cluster_id=0,
+    fps=10
+)
 ```
 
 **Output example:**
@@ -366,6 +377,13 @@ Cluster 0: 15 bursts
   S01_rest.set: 67.450s - 67.520s (2 activations)
   S02_task.set: 12.100s - 12.180s (2 activations)
   ...
+
+Creating burst video for cluster 0
+  Number of bursts: 15
+  Extracted 15 valid burst segments
+  Processing burst 1/15 (8 frames)
+  ...
+  ✓ Video saved to: ./cluster_0_all_bursts.mp4
 ```
 
 ### 6. Visualize Spatiotemporal Patterns

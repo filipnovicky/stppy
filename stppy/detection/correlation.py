@@ -156,9 +156,8 @@ def detect_bursts_by_correlation(
     data: np.ndarray,
     pattern: np.ndarray,
     W_smooth: np.ndarray,
-    threshold: float = 0.7,
-    sfreq: float = 250.0,
-    return_correlations: bool = False
+    threshold: float = 0.825,
+    sfreq: float = 250.0
 ) -> Dict:
     """
     Detect bursts by sliding pattern correlation across continuous data.
@@ -175,35 +174,31 @@ def detect_bursts_by_correlation(
         Template pattern to search for (e.g., cluster average)
     W_smooth : np.ndarray, shape (n_electrodes, n_electrodes)
         Spatial smoothing matrix
-    threshold : float, default=0.7
-        Correlation threshold for burst detection.
+    threshold : float, default=0.825
+        Correlation threshold for detection.
         Positive bursts: correlation > threshold
         Negative bursts: correlation < -threshold
     sfreq : float, default=250.0
         Sampling frequency in Hz (for rate calculations)
-    return_correlations : bool, default=False
-        If True, return full correlation timeseries
 
     Returns
     -------
     burst_info : dict
         Dictionary containing:
-        - 'positive_bursts': List of (start, end, peak_corr) tuples
-        - 'negative_bursts': List of (start, end, peak_corr) tuples
-        - 'n_positive': Number of positive bursts
-        - 'n_negative': Number of negative bursts
-        - 'rate_positive': Positive bursts per second
-        - 'rate_negative': Negative bursts per second
-        - 'correlations': Full correlation timeseries (if return_correlations=True)
-        - 'positions': Sample indices for correlations (if return_correlations=True)
+        - 'n_positive': Number of positive detections
+        - 'n_negative': Number of negative detections
+        - 'rate_positive': Positive detection rate per second
+        - 'times': Array of detection times in seconds
+        - 'polarities': Array of +1 (positive) or -1 (negative)
+        - 'correlations': Array of correlation values at each detection
 
     Examples
     --------
     >>> data = np.random.randn(10, 1000)
     >>> pattern = np.random.randn(10, 20)
     >>> W_smooth = np.eye(10)
-    >>> bursts = detect_bursts_by_correlation(data, pattern, W_smooth, threshold=0.7)
-    >>> bursts['n_positive'] >= 0
+    >>> result = detect_bursts_by_correlation(data, pattern, W_smooth, threshold=0.825)
+    >>> result['n_positive'] >= 0
     True
     """
     n_electrodes, n_samples = data.shape
@@ -227,36 +222,171 @@ def detect_bursts_by_correlation(
     correlations = np.array(correlations)
     positions = np.array(positions)
 
-    # Detect positive bursts (above threshold)
+    # Filter detections above threshold
     positive_mask = correlations > threshold
-    positive_bursts = _extract_burst_intervals(positions, correlations, positive_mask, pattern_length)
-
-    # Detect negative bursts (below -threshold)
     negative_mask = correlations < -threshold
-    negative_bursts = _extract_burst_intervals(positions, correlations, negative_mask, pattern_length)
+    detection_mask = positive_mask | negative_mask
 
-    # Calculate rates
+    # Extract detection times, polarities, and correlations
+    times = positions[detection_mask] / sfreq  # Convert to seconds
+    polarities = np.where(positive_mask[detection_mask], 1, -1)
+    correlations_filtered = correlations[detection_mask]
+
+    # Calculate statistics
+    n_positive = np.sum(positive_mask)
+    n_negative = np.sum(negative_mask)
     duration = n_samples / sfreq
-    rate_positive = len(positive_bursts) / duration if duration > 0 else 0
-    rate_negative = len(negative_bursts) / duration if duration > 0 else 0
+    rate_positive = n_positive / duration if duration > 0 else 0
 
-    result = {
-        'positive_bursts': positive_bursts,
-        'negative_bursts': negative_bursts,
-        'n_positive': len(positive_bursts),
-        'n_negative': len(negative_bursts),
+    return {
+        'n_positive': n_positive,
+        'n_negative': n_negative,
         'rate_positive': rate_positive,
-        'rate_negative': rate_negative,
-        'threshold': threshold,
-        'pattern_length': pattern_length,
-        'duration': duration
+        'times': times,
+        'polarities': polarities,
+        'correlations': correlations_filtered
     }
 
-    if return_correlations:
-        result['correlations'] = correlations
-        result['positions'] = positions
 
-    return result
+def detect_bursts_in_clusters(
+    cluster_activation_times: Dict,
+    cluster_durations: Dict,
+    dataset_names: List[str],
+    max_interval_ms: float = 50,
+    min_burst_length: int = 2,
+    correlation_threshold: float = 0.825
+) -> Dict:
+    """
+    Detect bursts from cluster activation times.
+
+    A burst is defined as 2+ cluster activations occurring within max_interval_ms.
+    This function groups close-together activations into burst events and tracks
+    their locations for visualization.
+
+    Parameters
+    ----------
+    cluster_activation_times : dict
+        {cluster_id: [(dataset_idx, times, polarities, correlations), ...]}
+        Output from detect_bursts_by_correlation() for each cluster and dataset
+    cluster_durations : dict
+        {cluster_id: duration_in_seconds}
+        Duration of each cluster pattern in seconds
+    dataset_names : list of str
+        List of dataset names/filenames corresponding to dataset indices
+    max_interval_ms : float, default=50
+        Maximum interval between activations to group into burst (milliseconds)
+    min_burst_length : int, default=2
+        Minimum number of activations required for a burst
+    correlation_threshold : float, default=0.825
+        Minimum |correlation| to include activation in burst detection
+
+    Returns
+    -------
+    bursts_by_cluster : dict
+        {cluster_id: [burst_1, burst_2, ...]} where each burst contains:
+        - 'dataset': dataset name
+        - 'start_time': burst start time (seconds)
+        - 'end_time': burst end time (seconds)
+        - 'length': number of activations in burst
+
+    Examples
+    --------
+    >>> cluster_activation_times = {
+    ...     0: [(0, np.array([1.0, 1.04]), np.array([1, 1]), np.array([0.9, 0.85]))]
+    ... }
+    >>> cluster_durations = {0: 0.08}
+    >>> dataset_names = ['dataset_1.set']
+    >>> bursts = detect_bursts_in_clusters(
+    ...     cluster_activation_times, cluster_durations, dataset_names
+    ... )
+    >>> len(bursts[0]) > 0
+    True
+    """
+    bursts_by_cluster = {}
+
+    for cluster_id, activations in cluster_activation_times.items():
+        cluster_bursts = []
+        cluster_duration = cluster_durations[cluster_id]
+
+        for dataset_idx, times, polarities, correlations in activations:
+            # Filter by correlation threshold
+            high_corr_mask = np.abs(correlations) > correlation_threshold
+            times_filtered = times[high_corr_mask]
+            polarities_filtered = polarities[high_corr_mask]
+            correlations_filtered = correlations[high_corr_mask]
+
+            if len(times_filtered) < min_burst_length:
+                continue
+
+            # Initialize first burst
+            current_burst = {
+                'times': [times_filtered[0]],
+                'polarities': [polarities_filtered[0]],
+                'correlations': [correlations_filtered[0]]
+            }
+
+            # Iterate through remaining activations
+            for i in range(1, len(times_filtered)):
+                interval_ms = (times_filtered[i] - current_burst['times'][-1]) * 1000
+
+                if interval_ms < max_interval_ms:
+                    # Continue current burst
+                    current_burst['times'].append(times_filtered[i])
+                    current_burst['polarities'].append(polarities_filtered[i])
+                    current_burst['correlations'].append(correlations_filtered[i])
+                else:
+                    # Save current burst if long enough
+                    if len(current_burst['times']) >= min_burst_length:
+                        burst = _finalize_burst(
+                            current_burst, cluster_duration,
+                            dataset_names[dataset_idx]
+                        )
+                        cluster_bursts.append(burst)
+
+                    # Start new burst
+                    current_burst = {
+                        'times': [times_filtered[i]],
+                        'polarities': [polarities_filtered[i]],
+                        'correlations': [correlations_filtered[i]]
+                    }
+
+            # Don't forget the last burst
+            if len(current_burst['times']) >= min_burst_length:
+                burst = _finalize_burst(
+                    current_burst, cluster_duration,
+                    dataset_names[dataset_idx]
+                )
+                cluster_bursts.append(burst)
+
+        bursts_by_cluster[cluster_id] = cluster_bursts
+
+    return bursts_by_cluster
+
+
+def _finalize_burst(burst_data: Dict, cluster_duration: float, dataset_name: str) -> Dict:
+    """
+    Convert burst data into final burst dictionary.
+
+    Parameters
+    ----------
+    burst_data : dict
+        Dictionary with 'times', 'polarities', 'correlations' lists
+    cluster_duration : float
+        Duration of cluster pattern in seconds
+    dataset_name : str
+        Name of the dataset this burst comes from
+
+    Returns
+    -------
+    burst : dict
+        Finalized burst with dataset, start_time, end_time, length
+    """
+    return {
+        'dataset': dataset_name,
+        'start_time': burst_data['times'][0],
+        'end_time': burst_data['times'][-1] + cluster_duration,
+        'length': len(burst_data['times'])
+    }
 
 
 def _extract_burst_intervals(

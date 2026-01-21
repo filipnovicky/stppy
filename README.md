@@ -302,11 +302,10 @@ composition = stppy.analysis.analyze_cluster_composition(
 #         "  Datasets: S01_rest.set: 90, S02_task.set: 60"
 ```
 
-### 5. Correlation-Based Burst Detection (Pattern Matching)
+### 5. Detect Cluster Bursts in Continuous Data
 
-The goal is to search for cluster patterns in the **entire continuous dataset**,
-independently of threshold-based detection. This validates whether cluster patterns
-actually appear in the raw data and measures their occurrence rates.
+Detect when cluster patterns appear in the continuous recordings and identify
+bursts (2+ activations within 50ms). This locates recurring patterns for visualization.
 
 ```python
 # Build spatial smoothing matrix from electrode positions
@@ -318,44 +317,71 @@ W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
     k=3.0  # Spatial decay parameter (higher = less smoothing)
 )
 
-# Detect bursts for each unique cluster (from clusters_to_keep in Step 4)
+# Collect activation times for each cluster
+cluster_activation_times = {}
+cluster_durations = {}
+
 for cluster_id in clusters_to_keep:
     cluster_template = cluster_averages[cluster_id]
-    print(f"\n=== Analyzing Cluster {cluster_id} ===")
+    cluster_duration = cluster_template.shape[1] / 250.0  # seconds
+    cluster_durations[cluster_id] = cluster_duration
 
-    burst_stats = []
+    activations = []
     for dataset_idx, continuous_data in enumerate(datasets):
         # Detect when cluster template appears in continuous data
-        burst_info = stppy.detection.detect_bursts_by_correlation(
-            continuous_data,      # ENTIRE continuous recording
-            cluster_template,     # Template from Step 4
+        result = stppy.detection.detect_bursts_by_correlation(
+            continuous_data,
+            cluster_template,
             W_smooth,
-            threshold=0.7,        # Correlation threshold
-            sfreq=250.0,
-            return_correlations=True
+            threshold=0.825,  # Correlation threshold
+            sfreq=250.0
         )
+        activations.append((dataset_idx, result['times'],
+                          result['polarities'], result['correlations']))
 
-        # Collect statistics with dataset name
-        burst_stats.append({
-            'dataset_name': dataset_names[dataset_idx],
-            'n_positive': burst_info['n_positive'],
-            'n_negative': burst_info['n_negative'],
-            'rate': burst_info['rate_positive']
-        })
+    cluster_activation_times[cluster_id] = activations
 
-    # Summarize burst statistics by dataset
-    summary = stppy.analysis.summarize_burst_statistics(burst_stats)
-    # Output: "S01_rest.set: 10 bursts (rate: 0.50 bursts/sec)"
-    #         "S02_task.set: 8 bursts (rate: 0.30 bursts/sec)"
+# Detect bursts (2+ activations within 50ms)
+bursts_by_cluster = stppy.detection.detect_bursts_in_clusters(
+    cluster_activation_times,
+    cluster_durations,
+    dataset_names=[os.path.basename(f) for f in files],
+    max_interval_ms=50,
+    min_burst_length=2
+)
+
+# View burst locations for each cluster
+for cluster_id, bursts in bursts_by_cluster.items():
+    print(f"\nCluster {cluster_id}: {len(bursts)} bursts")
+    for burst in bursts[:5]:  # Show first 5
+        print(f"  {burst['dataset']}: "
+              f"{burst['start_time']:.3f}s - {burst['end_time']:.3f}s "
+              f"({burst['length']} activations)")
 ```
 
-**Key Point:** This detects cluster patterns ANYWHERE in the continuous data,
-not just at threshold-detected avalanche times. It's independent validation
-that the cluster patterns are real phenomena in your recordings.
+**Output example:**
+```
+Cluster 0: 15 bursts
+  S01_rest.set: 45.200s - 45.350s (3 activations)
+  S01_rest.set: 67.450s - 67.520s (2 activations)
+  S02_task.set: 12.100s - 12.180s (2 activations)
+  ...
+```
 
 ### 6. Visualize Spatiotemporal Patterns
 
 ```python
+# Create video showing all bursts from a cluster
+stppy.visualization.create_cluster_bursts_video(
+    bursts_by_cluster[0],  # All bursts for cluster 0
+    datasets,
+    dataset_names=[os.path.basename(f) for f in files],
+    './electrode_positions.json',
+    output_file='./cluster_0_all_bursts.mp4',
+    cluster_id=0,
+    fps=10
+)
+
 # Plot cluster spatiotemporal pattern (consensus average)
 fig = stppy.visualization.plot_cluster_average(
     average,

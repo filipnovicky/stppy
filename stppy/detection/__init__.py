@@ -20,6 +20,7 @@ from .correlation import (
     build_spatial_smoothing_matrix,
     spatiotemporal_correlation,
     detect_bursts_by_correlation,
+    detect_bursts_in_clusters,
     compute_temporal_statistics
 )
 
@@ -36,5 +37,6 @@ __all__ = [
     'build_spatial_smoothing_matrix',
     'spatiotemporal_correlation',
     'detect_bursts_by_correlation',
+    'detect_bursts_in_clusters',
     'compute_temporal_statistics'
 ]

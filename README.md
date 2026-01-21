@@ -27,25 +27,11 @@ A Python package for analyzing EEG avalanches with spatial and temporal alignmen
 
 ### From source
 
-**Important:** Run these commands in your **terminal/command line**, NOT in a Python interpreter or Jupyter notebook.
-
+**Important:** Run these commands in your **terminal/command line**
 ```bash
 git clone https://github.com/filipnovicky/stppy.git
 cd stppy
 pip install -e .
-```
-
-**If you're using Jupyter notebook/lab:**
-```python
-# Option 1: Run with ! prefix in a Jupyter cell
-!git clone https://github.com/filipnovicky/stppy.git
-%cd stppy
-!pip install -e .
-```
-
-```python
-# Option 2: Exit Python/Jupyter and run in terminal
-# Press Ctrl+D or type exit() to leave Python, then run the bash commands above
 ```
 
 ### Using pip (when published)
@@ -54,20 +40,10 @@ pip install -e .
 pip install stppy
 ```
 
-### Troubleshooting
-
-**Error: `SyntaxError: invalid syntax` when running installation commands**
-
-This means you're trying to run shell commands inside Python. These are bash/terminal commands, not Python code.
-
-Solutions:
-1. **Exit Python first**: If you're in a Python interpreter (prompt shows `>>>`), type `exit()` or press `Ctrl+D`, then run the commands in your terminal
-2. **Use Jupyter magic**: If you're in Jupyter, prefix commands with `!` (e.g., `!pip install -e .`)
-3. **Open a terminal**: Use a proper terminal/command prompt window instead of Python
-
 ## Quick Start
 
-**Prerequisites:** This package assumes your EEG data has been preprocessed (artifact removal, ICA, bandpass filtering, etc.) before analysis.
+**Prerequisites:** This package assumes your EEG data has been preprocessed (artifact removal, ICA, bandpass filtering, etc.) before analysis. 
+The following steps are a step by step example of how to acquire results from the original paper.
 
 ### 1. Load and Preprocess EEG Data
 
@@ -80,7 +56,7 @@ files = stppy.io.find_eeg_files('/path/to/yourdata')
 
 # Create the positions file (use a file with all electrodes present)
 # Note: Some files may have electrodes removed, so find one with complete montage
-raw_complete = stppy.io.load_eeg_raw(files[0], preload=True)  # Check this has all electrodes
+raw_complete = stppy.io.load_eeg_raw(files[7], preload=True)  # This file contains all electrodes after cleaning
 stppy.io.create_electrode_positions_file(raw_complete, './electrode_positions.json')
 
 # Process all files
@@ -99,7 +75,7 @@ for i, file_path in enumerate(files):
         verbose=False
     )
 
-    # Resample to 250 Hz
+    # Resample to 250 Hz (Optional)
     raw_250 = stppy.preprocessing.resample_data(raw_interp, 250)
 
     # Get data array and add to datasets
@@ -174,7 +150,7 @@ stppy.io.save_pickle(path_matrix, './path_matrix.pkl')
 # Step 1: Generate block plan
 plan = stppy.alignment.generate_block_plan(
     n_avalanches=len(avalanches),
-    block_size=500
+    block_size=2000
 )
 # Outputs: "Need to compute 15 blocks"
 
@@ -210,8 +186,8 @@ K_norm = stppy.utils.normalize_distance_matrix(K, method='mean')
 print("Computing block 000...")
 block_0 = stppy.alignment.compute_similarity_block(
     avalanches, K_norm,
-    row_start=0, row_end=500,
-    col_start=0, col_end=500,
+    row_start=0, row_end=2000,
+    col_start=0, col_end=2000,
     is_diagonal=True
 )
 stppy.io.save_pickle(block_0, './blocks/block_000.pkl')
@@ -223,8 +199,8 @@ print("Block 000 complete")
 # Job 1: block_001.py (off-diagonal block)
 block_1 = stppy.alignment.compute_similarity_block(
     avalanches, K_norm,
-    row_start=500, row_end=1000,
-    col_start=0, col_end=500,
+    row_start=2000, row_end=4000,
+    col_start=0, col_end=2000,
     is_diagonal=False
 )
 stppy.io.save_pickle(block_1, './blocks/block_001.pkl')
@@ -259,9 +235,9 @@ path_matrix = stppy.io.load_pickle('./path_matrix.pkl')
 # Hierarchical clustering
 clusters, cluster_info = stppy.clustering.simple_hierarchical_clustering(
     similarity_matrix,
-    threshold=3.5,
+    threshold=3.5, # Arbitrary free parameter
     method='average',
-    min_cluster_size=30
+    min_cluster_size=30 # Arbitrary free parameter
 )
 
 # Build consensus alignments for all clusters
@@ -299,7 +275,7 @@ composition = stppy.analysis.analyze_cluster_composition(
     avalanche_index
 )
 # Output: "Cluster 0: 150 avalanches"
-#         "  Datasets: S01_rest.set: 90, S02_task.set: 60"
+#         "  Datasets: S01_rest.set: 15, S02_task.set: 12..."
 ```
 
 ### 5. Detect Cluster Bursts in Continuous Data
@@ -314,7 +290,7 @@ position_array = np.array([positions[ch] for ch in sorted(positions.keys())])
 
 W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
     position_array,
-    k=3.0  # Spatial decay parameter (higher = less smoothing)
+    k=10.0  # Spatial decay parameter (higher = less smoothing)
 )
 
 # Collect activation times for each cluster
@@ -371,17 +347,6 @@ Cluster 0: 15 bursts
 ### 6. Visualize Spatiotemporal Patterns
 
 ```python
-# Create video showing all bursts from a cluster
-stppy.visualization.create_cluster_bursts_video(
-    bursts_by_cluster[0],  # All bursts for cluster 0
-    datasets,
-    dataset_names=[os.path.basename(f) for f in files],
-    './electrode_positions.json',
-    output_file='./cluster_0_all_bursts.mp4',
-    cluster_id=0,
-    fps=10
-)
-
 # Plot cluster spatiotemporal pattern (consensus average)
 fig = stppy.visualization.plot_cluster_average(
     average,
@@ -444,6 +409,17 @@ stppy.visualization.combine_videos(
     output_file='./all_clusters.mp4',
     titles=['Cluster 0', 'Cluster 1', 'Cluster 2']
 )
+
+# Create video showing all bursts from a cluster
+stppy.visualization.create_cluster_bursts_video(
+    bursts_by_cluster[0],  # All bursts for cluster 0
+    datasets,
+    dataset_names=[os.path.basename(f) for f in files],
+    './electrode_positions.json',
+    output_file='./cluster_0_all_bursts.mp4',
+    cluster_id=0,
+    fps=10
+)
 ```
 
 ## Package Structure
@@ -488,7 +464,7 @@ pytest tests/
 If you use this package in your research, please cite:
 
 ```
-[Your citation here]
+Recurring Spatiotemporal Patterns in Human EEG Reveal Psilocybin-Induced Shift from Rotating to Stable Propagation
 ```
 
 ## License

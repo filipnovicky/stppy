@@ -19,9 +19,6 @@ A Python package for analyzing EEG avalanches with spatial and temporal alignmen
   - Cluster spatiotemporal patterns (consensus averages)
   - Single binary avalanches
   - Original data of backfitted clusters
-- **Analysis**:
-  - Universal metadata system (user-defined fields)
-  - Flexible querying and grouping
 
 ## Installation
 

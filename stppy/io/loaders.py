@@ -137,7 +137,8 @@ def load_eeg_raw(file_path: str, preload: bool = True,
 
 def load_avalanche_data(filepath: str, min_time_length: int = 1,
                        max_time_length: Optional[int] = None,
-                       include_flipped: bool = False) -> List[np.ndarray]:
+                       include_flipped: bool = False,
+                       times_filepath: Optional[str] = None):
     """
     Load avalanche data from pickle file with optional temporal length filtering.
 
@@ -153,27 +154,45 @@ def load_avalanche_data(filepath: str, min_time_length: int = 1,
         If True, include polarity-flipped versions of all avalanches (multiplied by -1).
         This doubles the dataset size and helps find spatiotemporal patterns regardless
         of activation polarity (default: False)
+    times_filepath : str or None, optional
+        Path to the pickle file containing avalanche timing data.
+        If provided, timing info is loaded, filtered, and returned alongside arrays.
+        Flipped avalanches reuse the same timing as their originals. (default: None)
 
     Returns
     -------
     avalanche_arrays : list of np.ndarray
         List of avalanche arrays, each with shape (n_electrodes, n_timepoints)
+    avalanche_times : list of tuples (only if times_filepath is provided)
+        List of (start_idx, end_idx) tuples indicating when each avalanche occurs
 
     Examples
     --------
     >>> # Load with flipped versions for clustering
     >>> avalanches = load_avalanche_data('data.pkl', min_time_length=11, include_flipped=True)
+    >>> # Load with timing info
+    >>> avalanches, times = load_avalanche_data('data.pkl', min_time_length=11,
+    ...                                         include_flipped=True,
+    ...                                         times_filepath='times.pkl')
     """
     with open(filepath, 'rb') as f:
         avalanches = pickle.load(f)
 
     print(f"Loaded {len(avalanches)} participants")
 
+    has_times = times_filepath is not None
+    if has_times:
+        with open(times_filepath, 'rb') as f:
+            all_avalanche_times = pickle.load(f)
+
     avalanche_arrays = []
+    avalanche_times = []
     filtered_count_too_short = 0
     filtered_count_too_long = 0
 
     for participant_idx, participant_avalanches in enumerate(avalanches):
+        participant_times = all_avalanche_times[participant_idx] if has_times else None
+
         for avalanche_idx, avalanche in enumerate(participant_avalanches):
             if hasattr(avalanche, 'shape') and avalanche.ndim == 2:
                 temporal_length = avalanche.shape[1]
@@ -184,6 +203,8 @@ def load_avalanche_data(filepath: str, min_time_length: int = 1,
                     filtered_count_too_long += 1
                 else:
                     avalanche_arrays.append(avalanche)
+                    if has_times:
+                        avalanche_times.append(participant_times[avalanche_idx])
 
     print(f"Total avalanches extracted: {len(avalanche_arrays)}")
     print(f"Filtered out {filtered_count_too_short} avalanches with temporal length < {min_time_length}")
@@ -195,8 +216,12 @@ def load_avalanche_data(filepath: str, min_time_length: int = 1,
         original_count = len(avalanche_arrays)
         flipped_avalanches = [-arr for arr in avalanche_arrays]
         avalanche_arrays.extend(flipped_avalanches)
+        if has_times:
+            avalanche_times = avalanche_times + avalanche_times
         print(f"Included flipped versions: {len(avalanche_arrays)} total avalanches ({original_count} original + {original_count} flipped)")
 
+    if has_times:
+        return avalanche_arrays, avalanche_times
     return avalanche_arrays
 
 

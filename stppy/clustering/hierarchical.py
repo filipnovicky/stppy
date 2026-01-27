@@ -172,6 +172,10 @@ def remove_duplicate_polarities(
             flat_a = flattened[cid_a]
             flat_b = flattened[cid_b]
 
+            # Skip pairs with different lengths (can't be polarity duplicates)
+            if len(flat_a) != len(flat_b):
+                continue
+
             # Pearson correlation
             corr = np.corrcoef(flat_a, flat_b)[0, 1]
 

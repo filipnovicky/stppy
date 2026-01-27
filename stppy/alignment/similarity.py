@@ -458,15 +458,18 @@ def reconstruct_full_matrices(
             for local_j, global_j in enumerate(col_indices):
                 paths[global_i, global_j] = path_block[local_i][local_j]
 
-    # Fill lower triangle by symmetry
-    print("  Filling lower triangle by symmetry...")
+    # Fill both triangles by symmetry
+    print("  Filling matrix by symmetry...")
     for i in range(n_avalanches):
         for j in range(i):
             if np.isnan(similarity[i, j]) and not np.isnan(similarity[j, i]):
                 similarity[i, j] = similarity[j, i]
                 if paths[j, i] is not None:
-                    # Transpose path
                     paths[i, j] = [[(p[1], p[0]) for p in path] for path in paths[j, i]]
+            elif np.isnan(similarity[j, i]) and not np.isnan(similarity[i, j]):
+                similarity[j, i] = similarity[i, j]
+                if paths[i, j] is not None:
+                    paths[j, i] = [[(p[1], p[0]) for p in path] for path in paths[i, j]]
 
     print(f"✓ Reconstruction complete")
     print(f"  Similarity range: [{np.nanmin(similarity):.3f}, {np.nanmax(similarity):.3f}]")

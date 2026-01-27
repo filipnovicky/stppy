@@ -287,7 +287,8 @@ bursts (2+ activations within 50ms). This locates recurring patterns for visuali
 ```python
 # Build spatial smoothing matrix from electrode positions
 positions = stppy.io.load_electrode_positions('./electrode_positions.json')
-position_array = np.array([positions[ch] for ch in sorted(positions.keys())])
+position_array = np.array([[positions[ch]['x'], positions[ch]['y'], positions[ch]['z']]
+                           for ch in sorted(positions.keys())])
 
 W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
     position_array,

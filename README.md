@@ -109,6 +109,7 @@ filtered_avalanches, filtered_times = stppy.detection.filter_avalanche_propagati
 # Convert to peak representation
 peak_avalanches = stppy.detection.convert_to_peaks(filtered_avalanches)
 stppy.io.save_pickle(peak_avalanches, './peak_avalanches.pkl')
+stppy.io.save_pickle(filtered_times, './peak_avalanche_times.pkl')
 ```
 
 ### 3. Compute Similarity Matrix (All Avalanches)
@@ -117,10 +118,12 @@ stppy.io.save_pickle(peak_avalanches, './peak_avalanches.pkl')
 
 ```python
 # Load avalanche data (include flipped versions to double dataset size)
-avalanches = stppy.io.load_avalanche_data(
+# Optionally load timing info alongside arrays
+avalanches, avalanche_times = stppy.io.load_avalanche_data(
     './peak_avalanches.pkl',
     min_time_length=11,
-    include_flipped=True  # Adds polarity-flipped versions (positive ↔ negative)
+    include_flipped=True,  # Adds polarity-flipped versions (positive ↔ negative)
+    times_filepath='./peak_avalanche_times.pkl'  # Optional: load timing info
 )
 
 # Create distance matrix
@@ -167,10 +170,11 @@ os.makedirs('./blocks', exist_ok=True)
 
 # Load avalanche data (include flipped versions)
 print("Loading avalanche data...")
-avalanches = stppy.io.load_avalanche_data(
+avalanches, avalanche_times = stppy.io.load_avalanche_data(
     './peak_avalanches.pkl',
     min_time_length=11,
-    include_flipped=True
+    include_flipped=True,
+    times_filepath='./peak_avalanche_times.pkl'
 )
 print(f"Loaded {len(avalanches)} avalanches (including flipped)")
 

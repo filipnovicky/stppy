@@ -152,12 +152,68 @@ def spatiotemporal_correlation(
     return avg_correlation
 
 
+def _vectorized_frame_correlations(
+    pattern_smooth: np.ndarray,
+    window_smooth: np.ndarray
+) -> float:
+    """
+    Compute average frame-by-frame correlation using vectorized operations.
+
+    This is an optimized version that computes correlations for all timepoints
+    at once using broadcasting, avoiding Python loops.
+
+    Parameters
+    ----------
+    pattern_smooth : np.ndarray, shape (n_electrodes, n_timepoints)
+        Pre-smoothed pattern (W_smooth @ pattern already applied)
+    window_smooth : np.ndarray, shape (n_electrodes, n_timepoints)
+        Pre-smoothed data window (W_smooth @ window already applied)
+
+    Returns
+    -------
+    avg_correlation : float
+        Average correlation across all timepoints, in range [-1, 1]
+    """
+    # Compute mean and std for each frame (column)
+    pattern_mean = pattern_smooth.mean(axis=0, keepdims=True)
+    window_mean = window_smooth.mean(axis=0, keepdims=True)
+
+    pattern_std = pattern_smooth.std(axis=0)
+    window_std = window_smooth.std(axis=0)
+
+    # Find valid frames (non-constant)
+    valid_mask = (pattern_std > 1e-6) & (window_std > 1e-6)
+
+    if not np.any(valid_mask):
+        return 0.0
+
+    # Center the data
+    pattern_centered = pattern_smooth - pattern_mean
+    window_centered = window_smooth - window_mean
+
+    # Compute correlation for each frame: sum(x*y) / (n * std_x * std_y)
+    n_electrodes = pattern_smooth.shape[0]
+    covariance = np.sum(pattern_centered * window_centered, axis=0) / n_electrodes
+
+    # Correlation = covariance / (std_x * std_y)
+    correlations = np.zeros(pattern_smooth.shape[1])
+    correlations[valid_mask] = covariance[valid_mask] / (
+        pattern_std[valid_mask] * window_std[valid_mask]
+    )
+
+    # Average across timepoints
+    avg_correlation = np.mean(correlations)
+
+    return np.clip(avg_correlation, -1.0, 1.0)
+
+
 def detect_bursts_by_correlation(
     data: np.ndarray,
     pattern: np.ndarray,
     W_smooth: np.ndarray,
     threshold: float = 0.825,
-    sfreq: float = 250.0
+    sfreq: float = 250.0,
+    use_optimized: bool = True
 ) -> Dict:
     """
     Detect bursts by sliding pattern correlation across continuous data.
@@ -180,6 +236,10 @@ def detect_bursts_by_correlation(
         Negative bursts: correlation < -threshold
     sfreq : float, default=250.0
         Sampling frequency in Hz (for rate calculations)
+    use_optimized : bool, default=True
+        If True, use optimized implementation with pre-smoothing and
+        vectorized correlations (much faster for large datasets).
+        If False, use original implementation.
 
     Returns
     -------
@@ -207,20 +267,40 @@ def detect_bursts_by_correlation(
     if n_electrodes != n_electrodes_p:
         raise ValueError(f"Electrode count mismatch: data has {n_electrodes}, pattern has {n_electrodes_p}")
 
-    # Sliding window correlation
-    correlations = []
-    positions = []
+    if use_optimized:
+        # OPTIMIZATION 1: Pre-smooth data and pattern once
+        # Instead of applying W_smooth @ frame for every window and every timepoint,
+        # we smooth the entire arrays upfront
+        data_smooth = W_smooth @ data  # Shape: (n_electrodes, n_samples)
+        pattern_smooth = W_smooth @ pattern  # Shape: (n_electrodes, pattern_length)
 
-    for start in range(0, n_samples - pattern_length + 1):
-        end = start + pattern_length
-        window = data[:, start:end]
+        # Sliding window correlation with pre-smoothed data
+        n_windows = n_samples - pattern_length + 1
+        correlations = np.empty(n_windows)
+        positions = np.arange(n_windows)
 
-        corr = spatiotemporal_correlation(pattern, window, W_smooth)
-        correlations.append(corr)
-        positions.append(start)
+        for start in range(n_windows):
+            end = start + pattern_length
+            window_smooth = data_smooth[:, start:end]
 
-    correlations = np.array(correlations)
-    positions = np.array(positions)
+            # OPTIMIZATION 2: Vectorized frame correlations
+            corr = _vectorized_frame_correlations(pattern_smooth, window_smooth)
+            correlations[start] = corr
+    else:
+        # Original implementation (for backward compatibility / verification)
+        correlations = []
+        positions = []
+
+        for start in range(0, n_samples - pattern_length + 1):
+            end = start + pattern_length
+            window = data[:, start:end]
+
+            corr = spatiotemporal_correlation(pattern, window, W_smooth)
+            correlations.append(corr)
+            positions.append(start)
+
+        correlations = np.array(correlations)
+        positions = np.array(positions)
 
     # Filter detections above threshold
     positive_mask = correlations > threshold

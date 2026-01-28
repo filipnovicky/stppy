@@ -282,9 +282,12 @@ composition = stppy.analysis.analyze_cluster_composition(
 ### 5. Detect Cluster Bursts in Continuous Data
 
 Detect when cluster patterns appear in the continuous recordings and identify
-bursts (2+ activations within 50ms). This locates recurring patterns for visualization.
+bursts (2+ adjacent activations). An activation is grouped into a burst if it
+starts within `tolerance_samples` frames after the previous activation ends.
 
 ```python
+import numpy as np
+
 # Build spatial smoothing matrix from electrode positions
 positions = stppy.io.load_electrode_positions('./electrode_positions.json')
 position_array = np.array([[positions[ch]['x'], positions[ch]['y'], positions[ch]['z']]
@@ -319,12 +322,13 @@ for cluster_id in clusters_to_keep:
 
     cluster_activation_times[cluster_id] = activations
 
-# Detect bursts (2+ activations within 50ms)
+# Detect bursts (2+ activations where each starts within 2 samples after previous ends)
 bursts_by_cluster = stppy.detection.detect_bursts_in_clusters(
     cluster_activation_times,
     cluster_durations,
     dataset_names=[os.path.basename(f) for f in files],
-    max_interval_ms=50,
+    tolerance_samples=2,  # Max samples after end of previous activation (2 samples = 8ms at 250Hz)
+    sfreq=250.0,
     min_burst_length=2
 )
 
@@ -335,6 +339,11 @@ for cluster_id, bursts in bursts_by_cluster.items():
         print(f"  {burst['dataset']}: "
               f"{burst['start_time']:.3f}s - {burst['end_time']:.3f}s "
               f"({burst['length']} activations)")
+
+# Save results
+stppy.io.save_pickle(cluster_activation_times, './cluster_activation_times.pkl')
+stppy.io.save_pickle(cluster_durations, './cluster_durations.pkl')
+stppy.io.save_pickle(bursts_by_cluster, './bursts_by_cluster.pkl')
 ```
 
 **Output example:**

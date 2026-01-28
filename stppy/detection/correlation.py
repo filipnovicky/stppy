@@ -332,16 +332,17 @@ def detect_bursts_in_clusters(
     cluster_activation_times: Dict,
     cluster_durations: Dict,
     dataset_names: List[str],
-    max_interval_ms: float = 50,
+    tolerance_samples: int = 2,
+    sfreq: float = 250.0,
     min_burst_length: int = 2,
     correlation_threshold: float = 0.825
 ) -> Dict:
     """
     Detect bursts from cluster activation times.
 
-    A burst is defined as 2+ cluster activations occurring within max_interval_ms.
-    This function groups close-together activations into burst events and tracks
-    their locations for visualization.
+    A burst is defined as 2+ cluster activations where each subsequent activation
+    starts within `tolerance_samples` frames after the previous activation ends.
+    This groups temporally adjacent pattern occurrences into burst events.
 
     Parameters
     ----------
@@ -353,8 +354,12 @@ def detect_bursts_in_clusters(
         Duration of each cluster pattern in seconds
     dataset_names : list of str
         List of dataset names/filenames corresponding to dataset indices
-    max_interval_ms : float, default=50
-        Maximum interval between activations to group into burst (milliseconds)
+    tolerance_samples : int, default=2
+        Maximum number of samples (frames) after the end of one activation
+        where the next activation can start to be considered part of the same burst.
+        At 250Hz, 2 samples = 8ms tolerance.
+    sfreq : float, default=250.0
+        Sampling frequency in Hz (to convert tolerance_samples to seconds)
     min_burst_length : int, default=2
         Minimum number of activations required for a burst
     correlation_threshold : float, default=0.825
@@ -372,17 +377,21 @@ def detect_bursts_in_clusters(
     Examples
     --------
     >>> cluster_activation_times = {
-    ...     0: [(0, np.array([1.0, 1.04]), np.array([1, 1]), np.array([0.9, 0.85]))]
+    ...     0: [(0, np.array([1.0, 1.08]), np.array([1, 1]), np.array([0.9, 0.85]))]
     ... }
-    >>> cluster_durations = {0: 0.08}
+    >>> cluster_durations = {0: 0.08}  # 20 samples at 250Hz
     >>> dataset_names = ['dataset_1.set']
     >>> bursts = detect_bursts_in_clusters(
-    ...     cluster_activation_times, cluster_durations, dataset_names
+    ...     cluster_activation_times, cluster_durations, dataset_names,
+    ...     tolerance_samples=2, sfreq=250.0
     ... )
     >>> len(bursts[0]) > 0
     True
     """
     bursts_by_cluster = {}
+
+    # Convert tolerance from samples to seconds
+    tolerance_sec = tolerance_samples / sfreq
 
     for cluster_id, activations in cluster_activation_times.items():
         cluster_bursts = []
@@ -407,9 +416,15 @@ def detect_bursts_in_clusters(
 
             # Iterate through remaining activations
             for i in range(1, len(times_filtered)):
-                interval_ms = (times_filtered[i] - current_burst['times'][-1]) * 1000
+                # Previous activation ends at: last_start_time + cluster_duration
+                prev_end_time = current_burst['times'][-1] + cluster_duration
+                # Distance from end of previous to start of current
+                gap_from_end = times_filtered[i] - prev_end_time
 
-                if interval_ms < max_interval_ms:
+                # Group into burst if next activation starts within tolerance
+                # after the previous one ends (0 <= gap <= tolerance)
+                # Use small epsilon for floating point comparison
+                if -1e-9 <= gap_from_end <= tolerance_sec:
                     # Continue current burst
                     current_burst['times'].append(times_filtered[i])
                     current_burst['polarities'].append(polarities_filtered[i])

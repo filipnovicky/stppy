@@ -213,7 +213,8 @@ def detect_bursts_by_correlation(
     W_smooth: np.ndarray,
     threshold: float = 0.825,
     sfreq: float = 250.0,
-    use_optimized: bool = True
+    use_optimized: bool = True,
+    return_all: bool = False
 ) -> Dict:
     """
     Detect bursts by sliding pattern correlation across continuous data.
@@ -234,23 +235,35 @@ def detect_bursts_by_correlation(
         Correlation threshold for detection.
         Positive bursts: correlation > threshold
         Negative bursts: correlation < -threshold
+        Ignored when return_all=True.
     sfreq : float, default=250.0
         Sampling frequency in Hz (for rate calculations)
     use_optimized : bool, default=True
         If True, use optimized implementation with pre-smoothing and
         vectorized correlations (much faster for large datasets).
         If False, use original implementation.
+    return_all : bool, default=False
+        If True, return correlations for ALL sliding window positions
+        without threshold filtering. This allows downstream code to apply
+        any threshold as a free parameter.
+        If False, return only threshold-filtered detections (original behavior).
 
     Returns
     -------
     burst_info : dict
-        Dictionary containing:
-        - 'n_positive': Number of positive detections
-        - 'n_negative': Number of negative detections
-        - 'rate_positive': Positive detection rate per second
-        - 'times': Array of detection times in seconds
-        - 'polarities': Array of +1 (positive) or -1 (negative)
-        - 'correlations': Array of correlation values at each detection
+        When return_all=False (default):
+            - 'n_positive': Number of positive detections
+            - 'n_negative': Number of negative detections
+            - 'rate_positive': Positive detection rate per second
+            - 'times': Array of detection times in seconds
+            - 'polarities': Array of +1 (positive) or -1 (negative)
+            - 'correlations': Array of correlation values at each detection
+
+        When return_all=True:
+            - 'times': Array of ALL window start times in seconds
+            - 'polarities': Array of +1/-1 (sign of correlation) for every window
+            - 'correlations': Array of raw correlation values for every window
+            - 'n_windows': Total number of sliding windows
 
     Examples
     --------
@@ -259,6 +272,11 @@ def detect_bursts_by_correlation(
     >>> W_smooth = np.eye(10)
     >>> result = detect_bursts_by_correlation(data, pattern, W_smooth, threshold=0.825)
     >>> result['n_positive'] >= 0
+    True
+
+    >>> # Return all correlations for downstream threshold tuning
+    >>> result = detect_bursts_by_correlation(data, pattern, W_smooth, return_all=True)
+    >>> len(result['correlations']) == result['n_windows']
     True
     """
     n_electrodes, n_samples = data.shape
@@ -301,6 +319,17 @@ def detect_bursts_by_correlation(
 
         correlations = np.array(correlations)
         positions = np.array(positions)
+
+    if return_all:
+        # Return ALL window correlations without filtering
+        all_times = positions / sfreq
+        all_polarities = np.where(correlations >= 0, 1, -1).astype(np.int8)
+        return {
+            'times': all_times,
+            'polarities': all_polarities,
+            'correlations': correlations,
+            'n_windows': len(positions)
+        }
 
     # Filter detections above threshold
     positive_mask = correlations > threshold

@@ -5,8 +5,9 @@ Tracks only essential information: dataset name, timing, and activity.
 Users can parse additional metadata from dataset names as needed.
 """
 
+import os
 import numpy as np
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional, Callable
 from collections import defaultdict
 
 
@@ -233,3 +234,84 @@ def summarize_burst_statistics(
         print(f"{dataset_name}: {stats['n_bursts']} bursts (rate: {stats['rate']:.2f} bursts/sec)")
 
     return summary
+
+
+def parse_dataset_metadata(
+    file_paths: List[str],
+    subject_delimiter: str = '_',
+    subject_position: int = 0
+) -> List[Dict]:
+    """
+    Parse dataset metadata from file paths.
+
+    Extracts drug condition, task condition, and subject ID from
+    the directory structure and filename. Expects the path layout::
+
+        .../drug_condition/task_condition/subject_task.set
+
+    Parameters
+    ----------
+    file_paths : list of str
+        Full file paths to EEG datasets.
+        Example: ['/data/Control/Meditation/S01_meditation.set', ...]
+    subject_delimiter : str, default='_'
+        Character used to split the filename for extracting subject ID
+    subject_position : int, default=0
+        Position of subject ID token after splitting filename by delimiter.
+        0 means the first token (e.g., 'S01' from 'S01_meditation.set')
+
+    Returns
+    -------
+    metadata : list of dicts
+        One dict per file path, each containing:
+        - 'filepath': Original full path
+        - 'filename': Base filename (e.g., 'S01_meditation.set')
+        - 'drug': Drug condition from grandparent directory (e.g., 'Control')
+        - 'task': Task condition from parent directory (e.g., 'Meditation')
+        - 'subject': Subject ID from filename (e.g., 'S01')
+
+    Examples
+    --------
+    >>> paths = [
+    ...     '/data/Control/Meditation/S01_meditation.set',
+    ...     '/data/Psilocybin/Music/S02_music.set'
+    ... ]
+    >>> metadata = parse_dataset_metadata(paths)
+    >>> metadata[0]['drug']
+    'Control'
+    >>> metadata[0]['task']
+    'Meditation'
+    >>> metadata[0]['subject']
+    'S01'
+    """
+    metadata = []
+
+    for filepath in file_paths:
+        filename = os.path.basename(filepath)
+        parent_dir = os.path.dirname(filepath)
+        task = os.path.basename(parent_dir)
+        drug = os.path.basename(os.path.dirname(parent_dir))
+
+        # Extract subject ID from filename
+        name_without_ext = os.path.splitext(filename)[0]
+        tokens = name_without_ext.split(subject_delimiter)
+        subject = tokens[subject_position] if subject_position < len(tokens) else name_without_ext
+
+        metadata.append({
+            'filepath': filepath,
+            'filename': filename,
+            'drug': drug,
+            'task': task,
+            'subject': subject
+        })
+
+    # Print summary
+    drugs = set(m['drug'] for m in metadata)
+    tasks = set(m['task'] for m in metadata)
+    subjects = set(m['subject'] for m in metadata)
+    print(f"Parsed metadata for {len(metadata)} datasets")
+    print(f"  Drug conditions: {sorted(drugs)}")
+    print(f"  Task conditions: {sorted(tasks)}")
+    print(f"  Subjects: {len(subjects)} unique ({sorted(subjects)[:5]}{'...' if len(subjects) > 5 else ''})")
+
+    return metadata

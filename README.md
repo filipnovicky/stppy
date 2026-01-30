@@ -298,7 +298,16 @@ W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
     k=10.0  # Spatial decay parameter (higher = less smoothing)
 )
 
-# Collect activation times for each cluster
+# Parse metadata from file paths (drug condition, task, subject)
+file_metadata = stppy.analysis.parse_dataset_metadata(files)
+# Output: "Parsed metadata for 120 datasets"
+#         "  Drug conditions: ['Control', 'Psilocybin']"
+#         "  Task conditions: ['Meditation', 'Music', 'Resting state', 'Video']"
+#         "  Subjects: 30 unique (['S01', 'S02', ...])"
+
+# Collect correlation timeseries for each cluster
+# Using return_all=True gives correlations at EVERY timestep,
+# allowing downstream analysis to apply any threshold as a free parameter
 cluster_activation_times = {}
 cluster_durations = {}
 
@@ -309,27 +318,37 @@ for cluster_id in clusters_to_keep:
 
     activations = []
     for dataset_idx, continuous_data in enumerate(datasets):
-        # Detect when cluster template appears in continuous data
+        # Get correlation at every sliding window position
         result = stppy.detection.detect_bursts_by_correlation(
             continuous_data,
             cluster_template,
             W_smooth,
-            threshold=0.825,  # Correlation threshold
-            sfreq=250.0
+            sfreq=250.0,
+            return_all=True  # Return ALL correlations (no threshold filtering)
         )
         activations.append((dataset_idx, result['times'],
                           result['polarities'], result['correlations']))
 
     cluster_activation_times[cluster_id] = activations
 
-# Detect bursts (2+ activations where each starts within 2 samples after previous ends)
+# Save full correlation data (threshold can be applied later as free parameter)
+stppy.io.save_pickle(
+    {'cluster_activation_times': cluster_activation_times},
+    './cluster_analysis.pkl'
+)
+stppy.io.save_pickle(cluster_durations, './cluster_durations.pkl')
+stppy.io.save_pickle(file_metadata, './file_metadata.pkl')
+
+# Optionally, detect bursts with a specific threshold using the library
+# (threshold is applied inside detect_bursts_in_clusters via correlation_threshold)
 bursts_by_cluster = stppy.detection.detect_bursts_in_clusters(
     cluster_activation_times,
     cluster_durations,
     dataset_names=[os.path.basename(f) for f in files],
     tolerance_samples=2,  # Max samples after end of previous activation (2 samples = 8ms at 250Hz)
     sfreq=250.0,
-    min_burst_length=2
+    min_burst_length=2,
+    correlation_threshold=0.825  # Applied here as a free parameter
 )
 
 # View burst locations for each cluster
@@ -340,14 +359,16 @@ for cluster_id, bursts in bursts_by_cluster.items():
               f"{burst['start_time']:.3f}s - {burst['end_time']:.3f}s "
               f"({burst['length']} activations)")
 
-# Save results
-stppy.io.save_pickle(cluster_activation_times, './cluster_activation_times.pkl')
-stppy.io.save_pickle(cluster_durations, './cluster_durations.pkl')
 stppy.io.save_pickle(bursts_by_cluster, './bursts_by_cluster.pkl')
 ```
 
 **Output example:**
 ```
+Parsed metadata for 120 datasets
+  Drug conditions: ['Control', 'Psilocybin']
+  Task conditions: ['Meditation', 'Music', 'Resting state', 'Video']
+  Subjects: 30 unique (['S01', 'S02', 'S03', 'S04', 'S05'...])
+
 Cluster 0: 15 bursts
   S01_rest.set: 45.200s - 45.350s (3 activations)
   S01_rest.set: 67.450s - 67.520s (2 activations)

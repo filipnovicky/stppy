@@ -34,11 +34,10 @@ POSITIONS_FILE = '/home/novicky/Documents/stppy-work/electrode_positions.json'
 OUTPUT_DIR = '/home/novicky/Documents/stppy-work'
 
 # Analysis parameters
-K_VALUES = [10]
+K_VALUE = 10
 SFREQ = 250.0
 CO_ACTIVATION_THRESHOLD = 0.7
 CO_ACTIVATION_WINDOW = 0.05   # 50 ms
-LEAD_LAG_MAX_SEC = 5.0
 
 
 # ============================================================================
@@ -78,19 +77,14 @@ def preprocess():
 # STEP 2: CORRELATION ANALYSIS
 # ============================================================================
 
-def run_analysis_for_k(k_value):
+def run_analysis():
     """
-    Run the full analysis pipeline for a specific k value.
+    Run the full analysis pipeline with k=10.
     NO correlation threshold applied -- all correlations are saved.
 
     Uses stppy.detection.detect_bursts_by_correlation with return_all=True
     which pre-smooths the data once (W_smooth @ data) before the sliding
     window loop, giving a large speedup over the naive approach.
-
-    Parameters
-    ----------
-    k_value : float
-        Spatial decay parameter for smoothing
 
     Returns
     -------
@@ -99,7 +93,7 @@ def run_analysis_for_k(k_value):
     """
 
     print(f"\n{'='*80}")
-    print(f"RUNNING ANALYSIS WITH k={k_value} (NO CORRELATION THRESHOLD)")
+    print(f"RUNNING ANALYSIS WITH k={K_VALUE} (NO CORRELATION THRESHOLD)")
     print(f"{'='*80}")
 
     # Load pre-saved data
@@ -124,16 +118,15 @@ def run_analysis_for_k(k_value):
     print(f"\nLoaded {len(datasets)} datasets")
     print(f"Loaded {len(cluster_averages)} clusters")
 
-    # Build spatial smoothing matrix with specified k
-    print(f"\nBuilding spatial smoothing matrix with k={k_value}...")
+    # Build spatial smoothing matrix
+    print(f"\nBuilding spatial smoothing matrix with k={K_VALUE}...")
     W_smooth, distances, mean_distance = stppy.detection.build_spatial_smoothing_matrix(
-        electrode_positions, k=k_value
+        electrode_positions, k=K_VALUE
     )
 
     print(f"Mean electrode distance: {mean_distance:.2f} mm")
     print(f"Smoothing matrix built: {W_smooth.shape}")
 
-    # Use the actual number of clusters available
     top_clusters = len(cluster_averages)
     print(f"\nAnalyzing {top_clusters} clusters with spatiotemporal correlation")
     print("NOTE: Saving ALL correlations (no threshold)")
@@ -152,17 +145,15 @@ def run_analysis_for_k(k_value):
     for cluster_id in range(top_clusters):
         cluster_activation_times[cluster_id] = []
 
-    # Co-activation and lead-lag matrices
+    # Co-activation matrix
     co_activation_matrix = np.zeros((top_clusters, top_clusters))
-    lead_lag_matrix = np.zeros((top_clusters, top_clusters))
-    lead_lag_counts = np.zeros((top_clusters, top_clusters))
 
     # Store all intervals for each cluster
     cluster_intervals = {}
     for cluster_id in range(top_clusters):
         cluster_intervals[cluster_id] = []
 
-    print(f"\nAnalyzing datasets against clusters (k={k_value}, saving ALL correlations)...")
+    print(f"\nAnalyzing datasets against clusters (k={K_VALUE}, saving ALL correlations)...")
     for dataset_idx, (data, metadata) in enumerate(zip(datasets, file_metadata)):
         if dataset_idx % 10 == 0:
             print(f"  Processing dataset {dataset_idx}/{len(datasets)}...")
@@ -241,7 +232,7 @@ def run_analysis_for_k(k_value):
                     normalized_activations
                 )
 
-        # Co-activation and lead-lag analysis for this dataset
+        # Co-activation analysis for this dataset
         if len(dataset_activations) > 1:
             dataset_activations.sort(key=lambda x: x[1])
 
@@ -252,25 +243,7 @@ def run_analysis_for_k(k_value):
                         if abs(time_a - time_b) <= CO_ACTIVATION_WINDOW:
                             co_activation_matrix[cluster_a, cluster_b] += 1
 
-            # Lead-lag analysis
-            for i, (cluster_a, time_a) in enumerate(dataset_activations):
-                for j, (cluster_b, time_b) in enumerate(dataset_activations):
-                    if cluster_a != cluster_b:
-                        time_diff = time_b - time_a
-                        if 0 < time_diff <= LEAD_LAG_MAX_SEC:
-                            lead_lag_matrix[cluster_a, cluster_b] += time_diff
-                            lead_lag_counts[cluster_a, cluster_b] += 1
-
     print("Computing statistics...")
-
-    # Average lead-lag times
-    average_lead_lag_matrix = np.zeros((top_clusters, top_clusters))
-    for i in range(top_clusters):
-        for j in range(top_clusters):
-            if lead_lag_counts[i, j] > 0:
-                average_lead_lag_matrix[i, j] = (
-                    lead_lag_matrix[i, j] / lead_lag_counts[i, j]
-                )
 
     # Normalize co-activation matrix
     total_activations_per_cluster = np.zeros(top_clusters)
@@ -422,22 +395,9 @@ def run_analysis_for_k(k_value):
         co_activation_pairs, key=lambda x: x[2], reverse=True
     )[:10]
 
-    # Top lead-lag relationships
-    lead_lag_relationships = []
-    for i in range(top_clusters):
-        for j in range(top_clusters):
-            if i != j and lead_lag_counts[i, j] >= 5:
-                avg_lag = average_lead_lag_matrix[i, j]
-                count = lead_lag_counts[i, j]
-                lead_lag_relationships.append((i, j, avg_lag, count))
-
-    strong_relationships = sorted(
-        lead_lag_relationships, key=lambda x: x[3], reverse=True
-    )[:10]
-
     # Assemble results
     results = {
-        'k_value': k_value,
+        'k_value': K_VALUE,
         'correlation_threshold': None,
         'cluster_stats': cluster_stats,
         'drug_matrix': drug_matrix,
@@ -456,13 +416,9 @@ def run_analysis_for_k(k_value):
         'cluster_activation_times': cluster_activation_times,
         'co_activation_matrix': co_activation_matrix,
         'co_activation_probability': co_activation_probability,
-        'lead_lag_matrix': lead_lag_matrix,
-        'average_lead_lag_matrix': average_lead_lag_matrix,
-        'lead_lag_counts': lead_lag_counts,
         'interval_stats': interval_stats,
         'regular_clusters': regular_clusters,
         'top_coactivations': top_coactivations,
-        'strong_relationships': strong_relationships,
         # Polarity switching
         'polarity_switch_stats': polarity_switch_stats,
         'regular_switchers': regular_switchers,
@@ -470,10 +426,10 @@ def run_analysis_for_k(k_value):
         'W_smooth': W_smooth,
         'electrode_positions': electrode_positions,
         'mean_distance': mean_distance,
-        'spatial_k': k_value
+        'spatial_k': K_VALUE
     }
 
-    print(f"\nAnalysis complete for k={k_value}")
+    print(f"\nAnalysis complete for k={K_VALUE}")
     return results
 
 
@@ -502,24 +458,16 @@ def main():
     if run_analyze:
         print("=" * 80)
         print("STEP 2: CORRELATION ANALYSIS")
-        print("NO CORRELATION THRESHOLD - ALL CORRELATIONS SAVED")
+        print(f"k={K_VALUE}, NO CORRELATION THRESHOLD - ALL CORRELATIONS SAVED")
         print("=" * 80)
 
-        print(f"\nTesting {len(K_VALUES)} k values: {K_VALUES}")
+        results = run_analysis()
 
-        all_results = {}
-        for k in K_VALUES:
-            config_name = f"k{k}_no_threshold"
-            print(f"\n{'='*80}")
-            print(f"Configuration: {config_name}")
-            print(f"{'='*80}")
-
-            results = run_analysis_for_k(k_value=k)
-            all_results[config_name] = results
-
-            output_file = os.path.join(OUTPUT_DIR, f'cluster_analysis_{config_name}.pkl')
-            stppy.io.save_pickle(results, output_file)
-            print(f"Saved to: {output_file}")
+        output_file = os.path.join(
+            OUTPUT_DIR, f'cluster_analysis_k{K_VALUE}_no_threshold.pkl'
+        )
+        stppy.io.save_pickle(results, output_file)
+        print(f"Saved to: {output_file}")
 
         print(f"\n{'='*80}")
         print("ANALYSIS COMPLETE")

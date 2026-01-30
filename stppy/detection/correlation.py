@@ -214,7 +214,8 @@ def detect_bursts_by_correlation(
     threshold: float = 0.825,
     sfreq: float = 250.0,
     use_optimized: bool = True,
-    return_all: bool = False
+    return_all: bool = False,
+    step: Optional[int] = None
 ) -> Dict:
     """
     Detect bursts by sliding pattern correlation across continuous data.
@@ -247,6 +248,11 @@ def detect_bursts_by_correlation(
         without threshold filtering. This allows downstream code to apply
         any threshold as a free parameter.
         If False, return only threshold-filtered detections (original behavior).
+    step : int or None, default=None
+        Step size for sliding window in samples.
+        None or 1: evaluate at every sample (overlapping windows).
+        Set to pattern length for non-overlapping windows, e.g.
+        ``step=pattern.shape[1]``.
 
     Returns
     -------
@@ -278,12 +284,19 @@ def detect_bursts_by_correlation(
     >>> result = detect_bursts_by_correlation(data, pattern, W_smooth, return_all=True)
     >>> len(result['correlations']) == result['n_windows']
     True
+
+    >>> # Non-overlapping windows (step = pattern length)
+    >>> result = detect_bursts_by_correlation(data, pattern, W_smooth,
+    ...     return_all=True, step=pattern.shape[1])
     """
     n_electrodes, n_samples = data.shape
     n_electrodes_p, pattern_length = pattern.shape
 
     if n_electrodes != n_electrodes_p:
         raise ValueError(f"Electrode count mismatch: data has {n_electrodes}, pattern has {n_electrodes_p}")
+
+    if step is None:
+        step = 1
 
     if use_optimized:
         # OPTIMIZATION 1: Pre-smooth data and pattern once
@@ -293,23 +306,23 @@ def detect_bursts_by_correlation(
         pattern_smooth = W_smooth @ pattern  # Shape: (n_electrodes, pattern_length)
 
         # Sliding window correlation with pre-smoothed data
-        n_windows = n_samples - pattern_length + 1
+        positions = np.arange(0, n_samples - pattern_length + 1, step)
+        n_windows = len(positions)
         correlations = np.empty(n_windows)
-        positions = np.arange(n_windows)
 
-        for start in range(n_windows):
+        for idx, start in enumerate(positions):
             end = start + pattern_length
             window_smooth = data_smooth[:, start:end]
 
             # OPTIMIZATION 2: Vectorized frame correlations
             corr = _vectorized_frame_correlations(pattern_smooth, window_smooth)
-            correlations[start] = corr
+            correlations[idx] = corr
     else:
         # Original implementation (for backward compatibility / verification)
         correlations = []
         positions = []
 
-        for start in range(0, n_samples - pattern_length + 1):
+        for start in range(0, n_samples - pattern_length + 1, step):
             end = start + pattern_length
             window = data[:, start:end]
 

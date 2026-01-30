@@ -319,13 +319,14 @@ for cluster_id in clusters_to_keep:
 
     activations = []
     for dataset_idx, continuous_data in enumerate(datasets):
-        # Get correlation at every sliding window position
+        # Get correlation at non-overlapping window positions
         result = stppy.detection.detect_bursts_by_correlation(
             continuous_data,
             cluster_template,
             W_smooth,
             sfreq=250.0,
-            return_all=True  # Return ALL correlations (no threshold filtering)
+            return_all=True,  # Return ALL correlations (no threshold filtering)
+            step=cluster_template.shape[1]  # Non-overlapping: step = pattern length
         )
         activations.append((dataset_idx, result['times'],
                           result['polarities'], result['correlations']))

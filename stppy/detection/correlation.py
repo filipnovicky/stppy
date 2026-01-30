@@ -207,6 +207,57 @@ def _vectorized_frame_correlations(
     return np.clip(avg_correlation, -1.0, 1.0)
 
 
+def _suppress_overlapping_detections(
+    positions: np.ndarray,
+    pattern_length: int,
+    polarities: np.ndarray = None,
+    correlations: np.ndarray = None
+) -> Tuple:
+    """
+    Suppress overlapping detections by keeping only non-overlapping activations.
+
+    With step=1, consecutive above-threshold detections overlap spatially
+    (each spans [t, t + pattern_length]). This function walks through
+    detections chronologically: it accepts the first detection and skips all
+    subsequent detections whose start falls within the span of the last
+    accepted detection.
+
+    Parameters
+    ----------
+    positions : np.ndarray
+        Detection positions (samples or seconds), assumed sorted.
+    pattern_length : int or float
+        Duration of the pattern in the same units as positions.
+    polarities : np.ndarray, optional
+        Polarity values for each detection.
+    correlations : np.ndarray, optional
+        Correlation values for each detection.
+
+    Returns
+    -------
+    filtered : tuple
+        (positions, polarities, correlations) with overlapping detections
+        removed. If polarities/correlations are None, those entries are None.
+    """
+    if len(positions) == 0:
+        return positions, polarities, correlations
+
+    keep = [0]
+    last_accepted = 0
+
+    for i in range(1, len(positions)):
+        if positions[i] >= positions[last_accepted] + pattern_length:
+            keep.append(i)
+            last_accepted = i
+
+    keep = np.array(keep)
+    filtered_positions = positions[keep]
+    filtered_polarities = polarities[keep] if polarities is not None else None
+    filtered_correlations = correlations[keep] if correlations is not None else None
+
+    return filtered_positions, filtered_polarities, filtered_correlations
+
+
 def detect_bursts_by_correlation(
     data: np.ndarray,
     pattern: np.ndarray,
@@ -349,14 +400,26 @@ def detect_bursts_by_correlation(
     negative_mask = correlations < -threshold
     detection_mask = positive_mask | negative_mask
 
-    # Extract detection times, polarities, and correlations
-    times = positions[detection_mask] / sfreq  # Convert to seconds
-    polarities = np.where(positive_mask[detection_mask], 1, -1)
-    correlations_filtered = correlations[detection_mask]
+    # Extract detection positions, polarities, and correlations
+    detected_positions = positions[detection_mask]
+    detected_polarities = np.where(positive_mask[detection_mask], 1, -1)
+    detected_correlations = correlations[detection_mask]
+
+    # Suppress overlapping detections: if activation at t0 spans
+    # [t0, t0+pattern_length], skip any subsequent detection at t1
+    # where t1 < t0 + pattern_length
+    detected_positions, detected_polarities, detected_correlations = (
+        _suppress_overlapping_detections(
+            detected_positions, pattern_length,
+            detected_polarities, detected_correlations
+        )
+    )
+
+    times = detected_positions / sfreq  # Convert to seconds
 
     # Calculate statistics
-    n_positive = np.sum(positive_mask)
-    n_negative = np.sum(negative_mask)
+    n_positive = int(np.sum(detected_polarities == 1))
+    n_negative = int(np.sum(detected_polarities == -1))
     duration = n_samples / sfreq
     rate_positive = n_positive / duration if duration > 0 else 0
 
@@ -365,8 +428,8 @@ def detect_bursts_by_correlation(
         'n_negative': n_negative,
         'rate_positive': rate_positive,
         'times': times,
-        'polarities': polarities,
-        'correlations': correlations_filtered
+        'polarities': detected_polarities,
+        'correlations': detected_correlations
     }
 
 
@@ -445,6 +508,15 @@ def detect_bursts_in_clusters(
             times_filtered = times[high_corr_mask]
             polarities_filtered = polarities[high_corr_mask]
             correlations_filtered = correlations[high_corr_mask]
+
+            # Suppress overlapping detections: skip activations that start
+            # before the previous accepted activation ends
+            times_filtered, polarities_filtered, correlations_filtered = (
+                _suppress_overlapping_detections(
+                    times_filtered, cluster_duration,
+                    polarities_filtered, correlations_filtered
+                )
+            )
 
             if len(times_filtered) < min_burst_length:
                 continue

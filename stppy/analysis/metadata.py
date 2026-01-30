@@ -238,80 +238,119 @@ def summarize_burst_statistics(
 
 def parse_dataset_metadata(
     file_paths: List[str],
-    subject_delimiter: str = '_',
-    subject_position: int = 0
+    drug_conditions: Tuple[str, ...] = ('Psilocybin', 'Control'),
+    task_conditions: Tuple[str, ...] = ('Meditation', 'Music', 'Resting state', 'Video'),
+    trained_prefix: str = '2'
 ) -> List[Dict]:
     """
     Parse dataset metadata from file paths.
 
-    Extracts drug condition, task condition, and subject ID from
-    the directory structure and filename. Expects the path layout::
-
-        .../drug_condition/task_condition/subject_task.set
+    Extracts drug condition, task condition, subject ID, and subject number
+    from the directory structure and filename. Expects filenames like
+    ``ctrl_sub001_meditation.set`` inside a directory tree that contains
+    drug and task condition names as path components.
 
     Parameters
     ----------
     file_paths : list of str
         Full file paths to EEG datasets.
-        Example: ['/data/Control/Meditation/S01_meditation.set', ...]
-    subject_delimiter : str, default='_'
-        Character used to split the filename for extracting subject ID
-    subject_position : int, default=0
-        Position of subject ID token after splitting filename by delimiter.
-        0 means the first token (e.g., 'S01' from 'S01_meditation.set')
+        Example: ['/data/Control/Meditation/ctrl_sub001_meditation.set', ...]
+    drug_conditions : tuple of str, default=('Psilocybin', 'Control')
+        Known drug condition names to search for in path components.
+        First match wins. If 'Psilocybin' is found the drug is 'Psilocybin',
+        otherwise 'Control'.
+    task_conditions : tuple of str, default=('Meditation', 'Music', 'Resting state', 'Video')
+        Known task condition names to search for in path components
+    trained_prefix : str, default='2'
+        Subject numbers starting with this character are considered trained
+        meditators (is_trained=True)
 
     Returns
     -------
     metadata : list of dicts
         One dict per file path, each containing:
-        - 'filepath': Original full path
-        - 'filename': Base filename (e.g., 'S01_meditation.set')
-        - 'drug': Drug condition from grandparent directory (e.g., 'Control')
-        - 'task': Task condition from parent directory (e.g., 'Meditation')
-        - 'subject': Subject ID from filename (e.g., 'S01')
+        - 'file_path': Original full path
+        - 'drug_condition': 'Psilocybin' or 'Control'
+        - 'task': Task condition (e.g., 'Meditation')
+        - 'subject_id': First token of filename (e.g., 'ctrl')
+        - 'subject_number': Numeric part from 'subNNN' token (e.g., '001'), or None
+        - 'is_trained': Whether subject_number starts with trained_prefix, or None
 
     Examples
     --------
     >>> paths = [
-    ...     '/data/Control/Meditation/S01_meditation.set',
-    ...     '/data/Psilocybin/Music/S02_music.set'
+    ...     '/data/Control/Meditation/ctrl_sub001_meditation.set',
+    ...     '/data/Psilocybin/Music/psilo_sub201_music.set'
     ... ]
     >>> metadata = parse_dataset_metadata(paths)
-    >>> metadata[0]['drug']
+    >>> metadata[0]['drug_condition']
     'Control'
     >>> metadata[0]['task']
     'Meditation'
-    >>> metadata[0]['subject']
-    'S01'
+    >>> metadata[0]['subject_id']
+    'ctrl'
+    >>> metadata[0]['subject_number']
+    '001'
+    >>> metadata[1]['is_trained']
+    True
     """
     metadata = []
 
-    for filepath in file_paths:
-        filename = os.path.basename(filepath)
-        parent_dir = os.path.dirname(filepath)
-        task = os.path.basename(parent_dir)
-        drug = os.path.basename(os.path.dirname(parent_dir))
+    for file_path in file_paths:
+        path_parts = file_path.split('/')
 
-        # Extract subject ID from filename
+        # Drug condition: check if any known drug name appears in path
+        drug_condition = drug_conditions[-1]  # default to last (Control)
+        for condition in drug_conditions[:-1]:
+            if condition in path_parts:
+                drug_condition = condition
+                break
+
+        # Task condition: check for known task names in path components
+        task = None
+        for part in path_parts:
+            if part in task_conditions:
+                task = part
+                break
+
+        # Parse filename tokens
+        filename = os.path.basename(file_path)
         name_without_ext = os.path.splitext(filename)[0]
-        tokens = name_without_ext.split(subject_delimiter)
-        subject = tokens[subject_position] if subject_position < len(tokens) else name_without_ext
+        tokens = name_without_ext.split('_')
+
+        subject_id = tokens[0] if tokens else name_without_ext
+
+        # Extract subject number from 'subNNN' token
+        subject_number = None
+        for token in tokens[1:]:
+            if token.startswith('sub'):
+                subject_number = token[3:]  # strip 'sub' prefix
+                break
+
+        # Trained meditator flag
+        is_trained = None
+        if subject_number and subject_number[0].isdigit():
+            is_trained = subject_number.startswith(trained_prefix)
 
         metadata.append({
-            'filepath': filepath,
-            'filename': filename,
-            'drug': drug,
+            'drug_condition': drug_condition,
             'task': task,
-            'subject': subject
+            'subject_id': subject_id,
+            'subject_number': subject_number,
+            'is_trained': is_trained,
+            'file_path': file_path
         })
 
     # Print summary
-    drugs = set(m['drug'] for m in metadata)
-    tasks = set(m['task'] for m in metadata)
-    subjects = set(m['subject'] for m in metadata)
+    drugs = set(m['drug_condition'] for m in metadata)
+    tasks = set(m['task'] for m in metadata if m['task'] is not None)
+    subjects = set(m['subject_number'] for m in metadata if m['subject_number'] is not None)
     print(f"Parsed metadata for {len(metadata)} datasets")
     print(f"  Drug conditions: {sorted(drugs)}")
     print(f"  Task conditions: {sorted(tasks)}")
-    print(f"  Subjects: {len(subjects)} unique ({sorted(subjects)[:5]}{'...' if len(subjects) > 5 else ''})")
+    print(f"  Subjects: {len(subjects)} unique")
+    n_trained = sum(1 for m in metadata if m['is_trained'] is True)
+    n_untrained = sum(1 for m in metadata if m['is_trained'] is False)
+    print(f"  Trained: {n_trained} datasets, Untrained: {n_untrained} datasets")
 
     return metadata

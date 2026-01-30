@@ -299,11 +299,12 @@ W_smooth, distances, mean_dist = stppy.detection.build_spatial_smoothing_matrix(
 )
 
 # Parse metadata from file paths (drug condition, task, subject)
+# Filenames expected like: ctrl_sub001_meditation.set
 file_metadata = stppy.analysis.parse_dataset_metadata(files)
 # Output: "Parsed metadata for 120 datasets"
 #         "  Drug conditions: ['Control', 'Psilocybin']"
 #         "  Task conditions: ['Meditation', 'Music', 'Resting state', 'Video']"
-#         "  Subjects: 30 unique (['S01', 'S02', ...])"
+#         "  Subjects: 30 unique"
 
 # Collect correlation timeseries for each cluster
 # Using return_all=True gives correlations at EVERY timestep,
@@ -367,7 +368,8 @@ stppy.io.save_pickle(bursts_by_cluster, './bursts_by_cluster.pkl')
 Parsed metadata for 120 datasets
   Drug conditions: ['Control', 'Psilocybin']
   Task conditions: ['Meditation', 'Music', 'Resting state', 'Video']
-  Subjects: 30 unique (['S01', 'S02', 'S03', 'S04', 'S05'...])
+  Subjects: 30 unique
+  Trained: 60 datasets, Untrained: 60 datasets
 
 Cluster 0: 15 bursts
   S01_rest.set: 45.200s - 45.350s (3 activations)

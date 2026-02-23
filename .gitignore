@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Package build
+*.egg-info/
+dist/
+build/
+
+# Data and outputs
+*.pkl
+*.pdf
+*.txt
+
+# Jupyter checkpoints
+.ipynb_checkpoints/

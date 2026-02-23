@@ -1,5 +1,10 @@
 # STPPY - Spatiotemporal Pattern Processing for Python
 
+Code for the paper:
+
+> **Psilocybin Silences Rotating Spatiotemporal Patterns in Human Cortical Avalanches**
+> *Uncovering the spatiotemporal structure of neural avalanches through optimal transport and dynamic time warping*
+
 A Python package for analyzing EEG avalanches with spatial and temporal alignment methods.
 
 **Author:** Filip Novicky (novicky@cs.cas.cz)
@@ -33,7 +38,7 @@ pip install -e .
 
 ## Usage
 
-For a complete end-to-end walkthrough, see [`paper_scripts/stppy_quickstart.ipynb`](paper_scripts/stppy_quickstart.ipynb).
+> **[paper_scripts/stppy_quickstart.ipynb](paper_scripts/stppy_quickstart.ipynb)** — complete end-to-end walkthrough of the analysis pipeline.
 
 ## Pipeline Overview
 
@@ -127,7 +132,7 @@ pytest tests/
 If you use this package in your research, please cite:
 
 ```
-Recurring Spatiotemporal Patterns in Human EEG Reveal Psilocybin-Induced Shift from Rotating to Stable Propagation
+Psilocybin Silences Rotating Spatiotemporal Patterns in Human Cortical Avalanches
 ```
 
 ## License

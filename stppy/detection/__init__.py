@@ -33,6 +33,5 @@ __all__ = [
     'get_nearest_neighbors',
     # Correlation-based detection
     'detect_sequences_by_correlation',
-    'detect_sequences_in_clusters',
-    'compute_temporal_statistics'
+    'detect_sequences_in_clusters'
 ]

@@ -113,26 +113,12 @@ Scripts in `paper_scripts/` reproduce the figures from the published paper and a
 - scikit-learn >= 1.0.0
 - opencv-python >= 4.5.0
 
-## Development
-
-Install development dependencies:
-
-```bash
-pip install -e ".[dev]"
-```
-
-Run tests:
-
-```bash
-pytest tests/
-```
-
 ## Citation
 
 If you use this package in your research, please cite:
 
 ```
-Psilocybin Silences Rotating Spatiotemporal Patterns in Human Cortical Avalanches
+Uncovering the spatiotemporal structure of neural avalanches through optimal transport and dynamic time warping
 ```
 
 ## License

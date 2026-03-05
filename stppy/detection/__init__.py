@@ -18,9 +18,8 @@ from .filtering import (
 )
 from .correlation import (
     detect_sequences_by_correlation,
-    detect_sequences_in_clusters,
-    compute_temporal_statistics
-)
+    detect_sequences_in_clusters
+    )
 
 __all__ = [
     # Threshold-based detection

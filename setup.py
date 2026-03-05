@@ -7,7 +7,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="stppy",
-    version="0.1.0",
+    version="1.0.0",
     author="Filip Novicky",
     author_email="novicky@cs.cas.cz",
     description="Spatiotemporal Pattern Processing for Python - EEG avalanche analysis",
@@ -32,8 +32,14 @@ setup(
         "matplotlib>=3.4.0",
         "mne>=1.0.0",
         "scikit-learn>=1.0.0",
+        "POT>=0.9.0",
+        "dtw-python>=1.3.0",
+        "h5py>=3.0.0",
     ],
     extras_require={
+        "gpu": [
+            "torch>=2.0.0",
+        ],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=3.0.0",

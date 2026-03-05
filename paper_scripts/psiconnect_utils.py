@@ -28,9 +28,9 @@ TASK_LABELS = {
     'video': 'Video'
 }
 
-POL_ORDER = ['standing', 'rotating', 'mixed', 'single']
+POL_ORDER = ['stable', 'switching', 'mixed', 'single']
 
-POLARITY_TYPES = ['standing', 'rotating', 'long_rotating', 'mixed', 'single']
+POLARITY_TYPES = ['stable', 'switching', 'long_switching', 'mixed', 'single']
 
 
 # ======================================================================
@@ -86,7 +86,7 @@ def determine_polarity(pols):
 
     unique = set(pols)
     if len(unique) == 1:
-        return 'standing'
+        return 'stable'
 
     is_alternating = True
     for i in range(1, len(pols)):
@@ -95,7 +95,7 @@ def determine_polarity(pols):
             break
 
     if is_alternating:
-        return 'rotating'
+        return 'switching'
 
     return 'mixed'
 

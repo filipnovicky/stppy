@@ -216,14 +216,14 @@ def run_analysis():
         has_scipy = False
         print("WARNING: scipy not available, skipping chi-square tests")
 
-    sw_types = ('standing', 'rotating')
+    sw_types = ('stable', 'switching')
     binary_bursts = [b for b in all_bursts if b['polarity'] in sw_types]
     ctrl_bin = [b for b in binary_bursts if b['_drug'] == 'ctrl']
     psi_bin = [b for b in binary_bursts if b['_drug'] == 'psi']
 
-    cs_all = sum(1 for b in ctrl_bin if b['polarity'] == 'standing')
+    cs_all = sum(1 for b in ctrl_bin if b['polarity'] == 'stable')
     cw_all = len(ctrl_bin) - cs_all
-    ps_all = sum(1 for b in psi_bin if b['polarity'] == 'standing')
+    ps_all = sum(1 for b in psi_bin if b['polarity'] == 'stable')
     pw_all = len(psi_bin) - ps_all
 
     cs_pct = cs_all / len(ctrl_bin) * 100 if ctrl_bin else 0
@@ -260,9 +260,9 @@ def run_analysis():
     for task in task_order:
         ct = [b for b in binary_bursts if b['_drug'] == 'ctrl' and b['_task'] == task]
         pt = [b for b in binary_bursts if b['_drug'] == 'psi' and b['_task'] == task]
-        cs = sum(1 for b in ct if b['polarity'] == 'standing')
+        cs = sum(1 for b in ct if b['polarity'] == 'stable')
         cw = len(ct) - cs
-        ps = sum(1 for b in pt if b['polarity'] == 'standing')
+        ps = sum(1 for b in pt if b['polarity'] == 'stable')
         pw = len(pt) - ps
         cs_p = cs / len(ct) * 100 if ct else 0
         ps_p = ps / len(pt) * 100 if pt else 0
@@ -300,9 +300,9 @@ def run_analysis():
         bc = [b for b in bursts_by_cluster[cid] if b['polarity'] in sw_types]
         ct = [b for b in bc if b['_drug'] == 'ctrl']
         pt = [b for b in bc if b['_drug'] == 'psi']
-        cs = sum(1 for b in ct if b['polarity'] == 'standing')
+        cs = sum(1 for b in ct if b['polarity'] == 'stable')
         cw = len(ct) - cs
-        ps = sum(1 for b in pt if b['polarity'] == 'standing')
+        ps = sum(1 for b in pt if b['polarity'] == 'stable')
         pw = len(pt) - ps
         cs_p = cs / len(ct) * 100 if ct else 0
         ps_p = ps / len(pt) * 100 if pt else 0
@@ -335,9 +335,9 @@ def run_analysis():
     trained_bin = [b for b in binary_bursts if is_trained(b)]
     untrained_bin = [b for b in binary_bursts if not is_trained(b)]
 
-    ts_all = sum(1 for b in trained_bin if b['polarity'] == 'standing')
+    ts_all = sum(1 for b in trained_bin if b['polarity'] == 'stable')
     tw_all = len(trained_bin) - ts_all
-    us_all = sum(1 for b in untrained_bin if b['polarity'] == 'standing')
+    us_all = sum(1 for b in untrained_bin if b['polarity'] == 'stable')
     uw_all = len(untrained_bin) - us_all
 
     # Per-drug breakdown for trained/untrained
@@ -346,13 +346,13 @@ def run_analysis():
     untrained_ctrl = [b for b in untrained_bin if b['_drug'] == 'ctrl']
     untrained_psi  = [b for b in untrained_bin if b['_drug'] == 'psi']
 
-    tc_s = sum(1 for b in trained_ctrl if b['polarity'] == 'standing')
+    tc_s = sum(1 for b in trained_ctrl if b['polarity'] == 'stable')
     tc_r = len(trained_ctrl) - tc_s
-    tp_s = sum(1 for b in trained_psi if b['polarity'] == 'standing')
+    tp_s = sum(1 for b in trained_psi if b['polarity'] == 'stable')
     tp_r = len(trained_psi) - tp_s
-    uc_s = sum(1 for b in untrained_ctrl if b['polarity'] == 'standing')
+    uc_s = sum(1 for b in untrained_ctrl if b['polarity'] == 'stable')
     uc_r = len(untrained_ctrl) - uc_s
-    up_s = sum(1 for b in untrained_psi if b['polarity'] == 'standing')
+    up_s = sum(1 for b in untrained_psi if b['polarity'] == 'stable')
     up_r = len(untrained_psi) - up_s
 
     p_tu = None
@@ -438,18 +438,19 @@ def run_analysis():
                         (1 - w/2, count_a_rot), (1 + w/2, count_b_rot)]:
             if val > 0:
                 ax.text(x, val + 5, str(val), ha='center', va='bottom',
-                        fontsize=11, fontweight='bold')
+                        fontsize=14, fontweight='bold')
 
         all_vals = [count_a_stand, count_b_stand, count_a_rot, count_b_rot]
         max_val = max(all_vals)
 
         ax.set_xticks([0, 1])
-        ax.set_xticklabels(['Standing', 'Rotating'], fontsize=12)
-        ax.set_ylabel('Number of Sequences', fontsize=12)
-        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_xticklabels(['Stable', 'Oscillating'], fontsize=17)
+        ax.set_ylabel('Number of Sequences', fontsize=18)
+        ax.set_title(title, fontsize=21, fontweight='bold')
+        ax.tick_params(axis='y', labelsize=17)
         ax.set_axisbelow(True)
         ax.yaxis.grid(True, linestyle='--', alpha=0.3)
-        ax.legend(fontsize=10, loc='upper right', framealpha=0.8)
+        ax.legend(fontsize=16, loc='upper left', framealpha=0.8)
 
         # Per-group chi-square GOF (tests equal count between groups)
         for gx, ca, cb in [(0, count_a_stand, count_b_stand),
@@ -464,7 +465,7 @@ def run_analysis():
                          bracket_y + max_val * 0.02, bracket_y],
                         'k-', lw=1.5, clip_on=False)
                 ax.text(gx, bracket_y + max_val * 0.03, sig_g,
-                        ha='center', va='bottom', fontsize=13, fontweight='bold')
+                        ha='center', va='bottom', fontsize=16, fontweight='bold')
 
         ax.set_ylim(0, max_val * 1.30)
 
@@ -520,7 +521,7 @@ def run_analysis():
                            bracket_y + all_max * 0.02, bracket_y],
                           'k-', lw=1, clip_on=False)
                 ax_b.text(gx, bracket_y + all_max * 0.025, sig_g,
-                          ha='center', va='bottom', fontsize=10, fontweight='bold')
+                          ha='center', va='bottom', fontsize=14, fontweight='bold')
 
     # X-axis: label each task with Standing/Rotating sublabels
     task_centers = [i * spacing + 0.5 for i in range(len(task_order))]
@@ -529,25 +530,26 @@ def run_analysis():
     sublabels = []
     for t in task_display:
         sublabels.append('S')
-        sublabels.append('R')
+        sublabels.append('O')
     # Interleave: S, R for each task
     tick_positions = []
     for i in range(len(task_order)):
         tick_positions.append(i * spacing)
         tick_positions.append(i * spacing + 1)
     ax_b.set_xticks(tick_positions)
-    ax_b.set_xticklabels(sublabels, fontsize=9)
+    ax_b.set_xticklabels(sublabels, fontsize=17)
 
     # Add task names as secondary labels below
     for i, tname in enumerate(task_display):
         ax_b.text(i * spacing + 0.5, -0.10, tname,
-                  ha='center', va='top', fontsize=11, fontweight='bold',
+                  ha='center', va='top', fontsize=18, fontweight='bold',
                   transform=ax_b.get_xaxis_transform())
 
-    ax_b.set_ylabel('Number of Sequences', fontsize=12)
-    ax_b.set_title('(b) Consistency Across Tasks', fontsize=14, fontweight='bold')
+    ax_b.set_ylabel('Number of Sequences', fontsize=18)
+    ax_b.set_title('(b) Consistency Across Tasks', fontsize=21, fontweight='bold')
+    ax_b.tick_params(axis='y', labelsize=17)
     ax_b.set_ylim(0, all_max * 1.30)
-    ax_b.legend(fontsize=10, loc='upper right', framealpha=0.8)
+    ax_b.legend(fontsize=16, loc='upper right', framealpha=0.8)
     ax_b.set_axisbelow(True)
     ax_b.yaxis.grid(True, linestyle='--', alpha=0.3)
 
@@ -588,7 +590,7 @@ def run_analysis():
                            bracket_y + all_max_c * 0.02, bracket_y],
                           'k-', lw=1, clip_on=False)
                 ax_c.text(gx, bracket_y + all_max_c * 0.025, sig_g,
-                          ha='center', va='bottom', fontsize=10, fontweight='bold')
+                          ha='center', va='bottom', fontsize=14, fontweight='bold')
 
     # X-axis: S/R sublabels + group names below
     tick_positions_c = []
@@ -596,19 +598,20 @@ def run_analysis():
     for i in range(len(tu_labels)):
         tick_positions_c.append(i * spacing_c)
         tick_positions_c.append(i * spacing_c + 1)
-        sublabels_c.extend(['S', 'R'])
+        sublabels_c.extend(['S', 'O'])
     ax_c.set_xticks(tick_positions_c)
-    ax_c.set_xticklabels(sublabels_c, fontsize=9)
+    ax_c.set_xticklabels(sublabels_c, fontsize=17)
 
     for i, tl in enumerate(tu_labels):
         ax_c.text(i * spacing_c + 0.5, -0.10, tl,
-                  ha='center', va='top', fontsize=11, fontweight='bold',
+                  ha='center', va='top', fontsize=18, fontweight='bold',
                   transform=ax_c.get_xaxis_transform())
 
-    ax_c.set_ylabel('Number of Sequences', fontsize=12)
-    ax_c.set_title('(c) Trained vs Untrained', fontsize=14, fontweight='bold')
+    ax_c.set_ylabel('Number of Sequences', fontsize=18)
+    ax_c.set_title('(c) Trained vs Untrained', fontsize=21, fontweight='bold')
+    ax_c.tick_params(axis='y', labelsize=17)
     ax_c.set_ylim(0, all_max_c * 1.30)
-    ax_c.legend(fontsize=10, loc='upper right', framealpha=0.8)
+    ax_c.legend(fontsize=16, loc='upper left', framealpha=0.8)
     ax_c.set_axisbelow(True)
     ax_c.yaxis.grid(True, linestyle='--', alpha=0.3)
 
@@ -630,9 +633,9 @@ def run_analysis():
         if cid in undefined_clusters:
             c_dominant.append('undefined')
         elif s >= w:
-            c_dominant.append('standing')
+            c_dominant.append('stable')
         else:
-            c_dominant.append('rotating')
+            c_dominant.append('switching')
 
     x_d = np.arange(len(cluster_ids))
     w_d = 0.35
@@ -646,28 +649,29 @@ def run_analysis():
 
     # Rotating bars: ctrl (solid red) + psi (hatched red)
     ax_d.bar(x_d + w_d / 2, c_cw, w_d, color=col_rotating, zorder=2,
-             label='Rotating (Ctrl)')
+             label='Oscillating (Ctrl)')
     ax_d.bar(x_d + w_d / 2, c_pw, w_d, bottom=c_cw, color=col_rotating,
              alpha=0.6, hatch='//', edgecolor='white', zorder=2,
-             label='Rotating (Psi)')
+             label='Oscillating (Psi)')
 
     ax_d.set_xticks(x_d)
-    ax_d.set_xticklabels(c_labels, fontsize=10)
-    ax_d.set_xlabel('Cluster ID', fontsize=12)
-    ax_d.set_ylabel('Number of Sequences', fontsize=12)
-    ax_d.set_title('(d) Cluster-Specific Sequence Counts', fontsize=14, fontweight='bold')
+    ax_d.set_xticklabels(c_labels, fontsize=17)
+    ax_d.set_xlabel('Cluster ID', fontsize=18)
+    ax_d.set_ylabel('Number of Sequences', fontsize=18)
+    ax_d.set_title('(d) Cluster-Specific Sequence Counts', fontsize=21, fontweight='bold')
+    ax_d.tick_params(axis='y', labelsize=17)
     ax_d.set_axisbelow(True)
     ax_d.yaxis.grid(True, linestyle='--', alpha=0.3)
 
     legend_elements = [
-        Patch(facecolor=col_standing, label='Standing (Ctrl)'),
+        Patch(facecolor=col_standing, label='Stable (Ctrl)'),
         Patch(facecolor=col_standing, alpha=0.6, hatch='//', edgecolor='white',
-              label='Standing (Psi)'),
-        Patch(facecolor=col_rotating, label='Rotating (Ctrl)'),
+              label='Stable (Psi)'),
+        Patch(facecolor=col_rotating, label='Oscillating (Ctrl)'),
         Patch(facecolor=col_rotating, alpha=0.6, hatch='//', edgecolor='white',
-              label='Rotating (Psi)'),
+              label='Oscillating (Psi)'),
     ]
-    ax_d.legend(handles=legend_elements, fontsize=10, loc='upper right', ncol=2)
+    ax_d.legend(handles=legend_elements, fontsize=16, loc='upper right', ncol=2)
 
     plt.tight_layout()
     plt.savefig(OUTPUT_FILE, dpi=150, bbox_inches='tight')

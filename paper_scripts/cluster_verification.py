@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Combined Cluster Verification: Binary vs Continuous Avalanches (Max Correlation)
+Combined Cluster Verification: Sign-encoded vs Continuous Avalanches (Max Correlation)
 
 Like cluster_verification_combined.py, but instead of finding the max
 correlation across all time offsets for each (avalanche, detector) pair,
@@ -9,7 +9,7 @@ this script:
   2. At that same offset, computes the correlation with ALL other templates
 
 Layout:
-    Row 1 (Binary):     (a) Cross-detection heatmap  (b) Self vs competitor violin
+    Row 1 (Sign-encoded):     (a) Cross-detection heatmap  (b) Self vs competitor violin
     Row 2 (Continuous):  (c) Cross-detection heatmap  (d) Self vs competitor violin
 
 Output:
@@ -182,7 +182,7 @@ def build_avalanche_to_dataset_mapping(peak_avalanche_times):
 
 
 # ======================================================================
-# Binary avalanche cross-detection (forced)
+# sign encoded avalanche cross-detection (forced)
 # ======================================================================
 
 def compute_cross_detection_binary_forced(flat_avalanches, cluster_averages,
@@ -474,7 +474,7 @@ def main():
                              TITLE_SIZE, LABEL_SIZE, TICK_SIZE, CBAR_SIZE)
 
     # Row labels on the left side
-    fig.text(0.01, 0.82, 'Binary', va='center', ha='center', fontsize=16,
+    fig.text(0.01, 0.82, 'Sign-encoded', va='center', ha='center', fontsize=16,
              fontweight='bold', rotation=90)
     fig.text(0.01, 0.50, 'Continuous', va='center', ha='center', fontsize=16,
              fontweight='bold', rotation=90)

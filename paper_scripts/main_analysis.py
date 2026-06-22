@@ -1,25 +1,45 @@
 #!/usr/bin/env python3
-"""
-Main Analysis Script (Clean: Non-Overlapping Bursts Only)
+"""Psilocybin polarity analysis: stable vs oscillating recurring sequences.
 
-Same as main_analysis.py but first removes any burst that temporally
-overlaps with a burst from a different cluster in the same dataset.
-Only "pure" (non-overlapping) bursts are kept for analysis.
+Loads the back-fitted cluster-activation sequences, removes temporally
+overlapping detections (keeping only non-overlapping "pure" bursts), and
+quantifies how the balance of stable vs oscillating sequences differs
+between control and psilocybin sessions, overall and per task/cluster/group.
 
-Analyses:
-  1. Polarity distribution per cluster
-  2. Polarity summary (by drug, task, cluster)
+Inference is by SUBJECT-LEVEL PERMUTATION (see psiconnect_permutation.py):
+a within-subject control/psilocybin sign-flip for the drug effect and a
+between-subject label shuffle for trained vs untrained, with Benjamini-
+Hochberg FDR. A pooled 2x2 chi-square block is also printed for reference,
+but it is anti-conservative -- sequences are nested within participants
+(pseudoreplication) -- and is NOT the headline test. Because the two drug
+conditions differ in total sequence yield, the figure reports within-
+condition proportions, with significance asterisks taken from the
+FDR-corrected permutation tests.
 
 Input files (from PSICONNECT_DATA_DIR):
     - sequences_by_cluster.pkl: {cluster_id: [sequence_dicts, ...]}
-    - cluster_averages.pkl: {cluster_id: array} for cluster durations
+    - cluster_averages.pkl:     {cluster_id: array} for cluster durations
+Outputs (to REGEN_OUTPUT_DIR, else the script directory):
+    - main_results.pdf, main_analysis_results.txt
 """
 
+import os
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 import stppy
 import stppy.io
+
+
+def _out_dir() -> Path:
+    """Output directory for regenerated results/figure.
+
+    Defaults to the script directory (original behaviour); set
+    REGEN_OUTPUT_DIR to redirect regenerated outputs elsewhere so the
+    committed originals in paper_scripts/ are never overwritten.
+    """
+    d = os.environ.get('REGEN_OUTPUT_DIR')
+    return Path(d) if d else Path(__file__).parent
 
 import numpy as np
 from collections import defaultdict
@@ -27,6 +47,9 @@ from collections import defaultdict
 from psiconnect_utils import (
     parse_condition, polarity_summary, sig_stars, benjamini_hochberg,
     DRUG_LABELS, TASK_LABELS, POLARITY_TYPES, BASE_DIR
+)
+from psiconnect_permutation import (
+    within_subject_permutation_test, between_subject_permutation_test
 )
 
 
@@ -111,17 +134,26 @@ def remove_overlapping_bursts(bursts_by_cluster, cluster_averages):
     return clean
 
 
+POLARITY_RELABEL = {'standing': 'stable', 'rotating': 'oscillating'}
+
+
 def run_analysis():
     print("Loading data...")
     bursts_by_cluster_raw = stppy.io.load_pickle(BASE_DIR / 'sequences_by_cluster.pkl')
     cluster_averages = stppy.io.load_pickle(BASE_DIR / 'cluster_averages.pkl')
+
+    # Relabel stppy's polarity vocabulary to the paper convention:
+    # standing wave -> 'stable', rotating wave -> 'oscillating'.
+    for seqs in bursts_by_cluster_raw.values():
+        for b in seqs:
+            b['polarity'] = POLARITY_RELABEL.get(b.get('polarity'), b.get('polarity'))
 
     # Remove overlapping bursts
     bursts_by_cluster = remove_overlapping_bursts(bursts_by_cluster_raw, cluster_averages)
 
     cluster_ids = sorted(bursts_by_cluster.keys())
 
-    polarity_types = POLARITY_TYPES
+    polarity_types = ['stable', 'oscillating']
     drugs = ['ctrl', 'psi']
     tasks = sorted({parse_condition(b['dataset'])[2]
                      for bursts in bursts_by_cluster.values()
@@ -205,7 +237,7 @@ def run_analysis():
     # STATISTICAL TESTS: Chi-square + FDR
     # ==================================================================
     print("=" * 80)
-    print("STATISTICAL TESTS (Chi-square: stable vs switching, ctrl vs psi)")
+    print("STATISTICAL TESTS (Chi-square: stable vs oscillating, ctrl vs psi)")
     print("=" * 80)
     print()
 
@@ -216,7 +248,7 @@ def run_analysis():
         has_scipy = False
         print("WARNING: scipy not available, skipping chi-square tests")
 
-    sw_types = ('stable', 'switching')
+    sw_types = ('stable', 'oscillating')
     binary_bursts = [b for b in all_bursts if b['polarity'] in sw_types]
     ctrl_bin = [b for b in binary_bursts if b['_drug'] == 'ctrl']
     psi_bin = [b for b in binary_bursts if b['_drug'] == 'psi']
@@ -244,9 +276,9 @@ def run_analysis():
         test_labels.append('Overall')
         test_pvalues.append(p_ov)
 
-    print("OVERALL (stable vs switching, ctrl vs psi):")
-    print(f"  Control:    stable={cs_all} ({cs_pct:.1f}%), switching={cw_all} ({cw_pct:.1f}%), n={len(ctrl_bin)}")
-    print(f"  Psilocybin: stable={ps_all} ({ps_pct:.1f}%), switching={pw_all} ({pw_pct:.1f}%), n={len(psi_bin)}")
+    print("OVERALL (stable vs oscillating, ctrl vs psi):")
+    print(f"  Control:    stable={cs_all} ({cs_pct:.1f}%), oscillating={cw_all} ({cw_pct:.1f}%), n={len(ctrl_bin)}")
+    print(f"  Psilocybin: stable={ps_all} ({ps_pct:.1f}%), oscillating={pw_all} ({pw_pct:.1f}%), n={len(psi_bin)}")
     if p_ov is not None:
         print(f"  Chi-square={chi2_ov:.2f}, df={dof_ov}, p={p_ov:.6f} {sig_overall}")
     print()
@@ -269,8 +301,8 @@ def run_analysis():
 
         tname = task_display_map.get(task, task)
         print(f"  {tname}:")
-        print(f"    Control:    stable={cs} ({cs_p:.1f}%), switching={cw}, n={len(ct)}")
-        print(f"    Psilocybin: stable={ps} ({ps_p:.1f}%), switching={pw}, n={len(pt)}")
+        print(f"    Control:    stable={cs} ({cs_p:.1f}%), oscillating={cw}, n={len(ct)}")
+        print(f"    Psilocybin: stable={ps} ({ps_p:.1f}%), oscillating={pw}, n={len(pt)}")
 
         p_t = None
         if has_scipy and ct and pt and min(cs, cw) + min(ps, pw) > 0:
@@ -308,8 +340,8 @@ def run_analysis():
         ps_p = ps / len(pt) * 100 if pt else 0
 
         print(f"  Cluster {cid}:")
-        print(f"    Control:    stable={cs} ({cs_p:.1f}%), switching={cw}, n={len(ct)}")
-        print(f"    Psilocybin: stable={ps} ({ps_p:.1f}%), switching={pw}, n={len(pt)}")
+        print(f"    Control:    stable={cs} ({cs_p:.1f}%), oscillating={cw}, n={len(ct)}")
+        print(f"    Psilocybin: stable={ps} ({ps_p:.1f}%), oscillating={pw}, n={len(pt)}")
 
         p_c = None
         if has_scipy and ct and pt and min(cs, cw) + min(ps, pw) > 0:
@@ -363,13 +395,13 @@ def run_analysis():
         test_labels.append('Trained vs Untrained')
         test_pvalues.append(p_tu)
 
-    print("TRAINED vs UNTRAINED (stable vs switching):")
+    print("TRAINED vs UNTRAINED (stable vs oscillating):")
     n_trained = len(trained_bin)
     n_untrained = len(untrained_bin)
     ts_pct = ts_all / n_trained * 100 if n_trained else 0
     us_pct = us_all / n_untrained * 100 if n_untrained else 0
-    print(f"  Trained:   stable={ts_all} ({ts_pct:.1f}%), switching={tw_all}, n={n_trained}")
-    print(f"  Untrained: stable={us_all} ({us_pct:.1f}%), switching={uw_all}, n={n_untrained}")
+    print(f"  Trained:   stable={ts_all} ({ts_pct:.1f}%), oscillating={tw_all}, n={n_trained}")
+    print(f"  Untrained: stable={us_all} ({us_pct:.1f}%), oscillating={uw_all}, n={n_untrained}")
     if p_tu is not None:
         print(f"  Chi-square={chi2_tu:.2f}, df={dof_tu}, p={p_tu:.6f} {sig_trained}")
     print()
@@ -395,6 +427,110 @@ def run_analysis():
         print()
 
     # ==================================================================
+    # SUBJECT-LEVEL PERMUTATION TESTS (Route A)
+    # ------------------------------------------------------------------
+    # The chi-square tests above pool bursts across subjects and treat
+    # each burst as independent. Bursts are nested within subjects, so
+    # that is pseudoreplication and the p-values are anti-conservative.
+    # These permutation tests respect the design:
+    #   - drug = within-subject crossover  -> per-subject ctrl/psi sign-flip
+    #   - trained/untrained = between-subject -> shuffle group across subjects
+    # Drug tests use ONLY subjects present in both arms of the slice;
+    # single-arm subjects are dropped and reported (not silently removed).
+    # ==================================================================
+    N_PERM = 10000
+    PERM_SEED = 0
+
+    print("-" * 80)
+    print("SUBJECT-LEVEL PERMUTATION TESTS (Route A)")
+    print(f"  {N_PERM} permutations; drug=within-subject sign-flip, "
+          f"trained/untrained=between-subject label shuffle")
+    print("-" * 80)
+
+    def _drug_records(bursts):
+        return [{'subj': b['_subj'], 'drug': b['_drug'],
+                 'standing': b['polarity'] == 'stable'} for b in bursts]
+
+    perm_labels = []
+    perm_results = []
+
+    # Overall (within-subject drug effect)
+    res = within_subject_permutation_test(
+        _drug_records(binary_bursts), n_perm=N_PERM, seed=PERM_SEED)
+    perm_labels.append('Overall')
+    perm_results.append(res)
+
+    # Per task (within-subject drug effect)
+    for task in task_order:
+        tname = task_display_map.get(task, task)
+        recs = _drug_records([b for b in binary_bursts if b['_task'] == task])
+        res = within_subject_permutation_test(recs, n_perm=N_PERM, seed=PERM_SEED)
+        perm_labels.append(f'Task: {tname}')
+        perm_results.append(res)
+
+    # Per cluster (within-subject drug effect)
+    for cid in cluster_ids:
+        bc = [b for b in bursts_by_cluster[cid] if b['polarity'] in sw_types]
+        res = within_subject_permutation_test(
+            _drug_records(bc), n_perm=N_PERM, seed=PERM_SEED)
+        if res.n_units == 0:
+            continue  # no paired subjects in this cluster -> skip
+        perm_labels.append(f'Cluster {cid}')
+        perm_results.append(res)
+
+    # Trained vs Untrained (between-subject)
+    tu_records = [{'subj': b['_subj'],
+                   'group': 'trained' if is_trained(b) else 'untrained',
+                   'standing': b['polarity'] == 'stable'} for b in binary_bursts]
+    res_tu = between_subject_permutation_test(
+        tu_records, n_perm=N_PERM, seed=PERM_SEED)
+    perm_labels.append('Trained vs Untrained')
+    perm_results.append(res_tu)
+
+    # FDR across the permutation p-values
+    perm_p = np.array([r.p_value for r in perm_results])
+    perm_fdr = benjamini_hochberg(perm_p)
+
+    print(f"  {'Test':<25s} {'chi2':>9s} {'p (perm)':>10s} {'p (FDR)':>10s} "
+          f"{'units':>6s} {'drop':>5s} {'n':>6s} {'raw':>5s} {'FDR':>5s}")
+    print(f"  {'-'*25} {'-'*9} {'-'*10} {'-'*10} {'-'*6} {'-'*5} {'-'*6} {'-'*5} {'-'*5}")
+    for i, label in enumerate(perm_labels):
+        r = perm_results[i]
+        print(f"  {label:<25s} {r.observed:>9.2f} {r.p_value:>10.4f} "
+              f"{perm_fdr[i]:>10.4f} {r.n_units:>6d} {r.n_dropped:>5d} "
+              f"{r.n_bursts:>6d} {sig_stars(r.p_value):>5s} "
+              f"{sig_stars(perm_fdr[i]):>5s}")
+    print()
+    n_sig_perm = sum(1 for p in perm_p if p < 0.05)
+    n_sig_perm_fdr = sum(1 for p in perm_fdr if p < 0.05)
+    print(f"  Significant (p<0.05): {n_sig_perm}/{len(perm_p)} permutation, "
+          f"{n_sig_perm_fdr}/{len(perm_fdr)} permutation+FDR")
+    print("  Note: 'units' = paired subjects (drug tests) or subjects "
+          "(trained/untrained); 'drop' = single-arm subjects excluded.")
+    print()
+
+    # Permutation p-values used for the FIGURE significance asterisks. We use the
+    # FDR-CORRECTED permutation p-values so the figure matches the multiplicity-
+    # corrected inference reported in the text (raw p would over-state the
+    # per-task panel). Overall (panel a) and per-task (panel b) FDR values are
+    # taken from the main family above (perm_fdr). Panel c shows the within-
+    # subject drug effect computed separately within trained and untrained
+    # participants; those two tests are FDR-corrected as their own pair.
+    perm_fig_p = {'overall': perm_fdr[0]}
+    for i, task in enumerate(task_order):
+        perm_fig_p[f'task:{task}'] = perm_fdr[1 + i]
+    td_raw = within_subject_permutation_test(
+        _drug_records(trained_bin), n_perm=N_PERM, seed=PERM_SEED).p_value
+    ud_raw = within_subject_permutation_test(
+        _drug_records(untrained_bin), n_perm=N_PERM, seed=PERM_SEED).p_value
+    td_fdr, ud_fdr = benjamini_hochberg(np.array([td_raw, ud_raw]))
+    perm_fig_p['trained_drug'] = td_fdr
+    perm_fig_p['untrained_drug'] = ud_fdr
+    print(f"  Panel-c within-group drug effect (FDR-corrected pair): "
+          f"trained p_raw={td_raw:.4f} p_FDR={td_fdr:.4f}; "
+          f"untrained p_raw={ud_raw:.4f} p_FDR={ud_fdr:.4f}")
+
+    # ==================================================================
     # FIGURE: MAIN RESULTS (CLEAN)
     # ==================================================================
     print("=" * 80)
@@ -402,10 +538,11 @@ def run_analysis():
     print("=" * 80)
 
     import matplotlib.pyplot as plt
+    plt.rcParams['ytick.labelsize'] = 15
     from matplotlib.patches import Patch
     from scipy.stats import chisquare
 
-    OUTPUT_FILE = Path(__file__).parent / 'main_results.pdf'
+    OUTPUT_FILE = _out_dir() / 'main_results.pdf'
 
     # Colors
     col_ctrl = '#2166AC'       # blue for control (panels a-c)
@@ -418,61 +555,79 @@ def run_analysis():
     ax_a, ax_b = axes[0]
     ax_c, ax_d = axes[1]
 
-    # Helper: draw grouped split bars with per-group significance
+    # Bars are normalized to PERCENTAGES WITHIN each drug group (control /
+    # psilocybin) so the ~2:1 data imbalance (control has ~2x the sequences
+    # of psilocybin) does not distort the visual comparison. Significance
+    # asterisks come from the FDR-corrected SUBJECT-LEVEL PERMUTATION tests
+    # (perm_fig_p), not the pseudoreplicated chi-square, so the figure matches
+    # the multiplicity-corrected headline inference.
+    def _pct_within(stand, rot):
+        tot = stand + rot
+        if tot == 0:
+            return 0.0, 0.0
+        return 100.0 * stand / tot, 100.0 * rot / tot
+
+    def _proportion_p(a_stand, a_rot, b_stand, b_rot):
+        """2x2 chi-square p: (ctrl/psi) x (standing/rotating). None if degenerate."""
+        from scipy.stats import chi2_contingency
+        if (a_stand + a_rot) == 0 or (b_stand + b_rot) == 0:
+            return None
+        if (a_stand + b_stand) == 0 or (a_rot + b_rot) == 0:
+            return None
+        try:
+            _, p, _, _ = chi2_contingency([[a_stand, a_rot], [b_stand, b_rot]])
+            return p
+        except ValueError:
+            return None
+
+    # Helper: draw grouped split bars (percentages within group) with the
+    # ctrl-vs-psi proportion test annotated on each polarity group.
     def _plot_split_panel(ax, label_a, count_a_stand, count_a_rot,
                           label_b, count_b_stand, count_b_rot,
-                          title):
-        """Plot split bars: Standing group and Rotating group, each with two bars.
-        Colors: blue for A (Control), red for B (Psilocybin), no hatching."""
+                          title, sig_p=None):
         w = 0.3
+        a_stand_pct, a_rot_pct = _pct_within(count_a_stand, count_a_rot)
+        b_stand_pct, b_rot_pct = _pct_within(count_b_stand, count_b_rot)
+
         # Standing group
-        ax.bar(0 - w/2, count_a_stand, w, color=col_ctrl, zorder=2,
-               label=f'{label_a}')
-        ax.bar(0 + w/2, count_b_stand, w, color=col_psi, zorder=2,
-               label=f'{label_b}')
+        ax.bar(0 - w/2, a_stand_pct, w, color=col_ctrl, zorder=2, label=f'{label_a}')
+        ax.bar(0 + w/2, b_stand_pct, w, color=col_psi, zorder=2, label=f'{label_b}')
         # Rotating group
-        ax.bar(1 - w/2, count_a_rot, w, color=col_ctrl, zorder=2)
-        ax.bar(1 + w/2, count_b_rot, w, color=col_psi, zorder=2)
+        ax.bar(1 - w/2, a_rot_pct, w, color=col_ctrl, zorder=2)
+        ax.bar(1 + w/2, b_rot_pct, w, color=col_psi, zorder=2)
 
-        for x, val in [(0 - w/2, count_a_stand), (0 + w/2, count_b_stand),
-                        (1 - w/2, count_a_rot), (1 + w/2, count_b_rot)]:
-            if val > 0:
-                ax.text(x, val + 5, str(val), ha='center', va='bottom',
-                        fontsize=14, fontweight='bold')
-
-        all_vals = [count_a_stand, count_b_stand, count_a_rot, count_b_rot]
-        max_val = max(all_vals)
+        for x, pct in [(0 - w/2, a_stand_pct), (0 + w/2, b_stand_pct),
+                       (1 - w/2, a_rot_pct), (1 + w/2, b_rot_pct)]:
+            ax.text(x, pct + 1.5, f'{pct:.1f}%', ha='center', va='bottom',
+                    fontsize=14, fontweight='bold')
 
         ax.set_xticks([0, 1])
-        ax.set_xticklabels(['Stable', 'Oscillating'], fontsize=17)
-        ax.set_ylabel('Number of Sequences', fontsize=18)
+        ax.set_xticklabels(['Stable', 'Oscillating'], fontsize=18)
+        ax.set_ylabel('Percentage within group (%)', fontsize=18)
         ax.set_title(title, fontsize=21, fontweight='bold')
-        ax.tick_params(axis='y', labelsize=17)
         ax.set_axisbelow(True)
         ax.yaxis.grid(True, linestyle='--', alpha=0.3)
-        ax.legend(fontsize=16, loc='upper left', framealpha=0.8)
+        ax.legend(fontsize=15, loc='upper center', ncol=2, framealpha=0.9)
 
-        # Per-group chi-square GOF (tests equal count between groups)
-        for gx, ca, cb in [(0, count_a_stand, count_b_stand),
-                           (1, count_a_rot, count_b_rot)]:
-            if ca + cb > 0:
-                _, p_g = chisquare([ca, cb])
-                sig_g = sig_stars(p_g)
-                top = max(ca, cb)
-                bracket_y = top + max_val * 0.08
+        if sig_p is not None:
+            sig_g = sig_stars(sig_p)
+            for gx, va, vb in [(0, a_stand_pct, b_stand_pct),
+                               (1, a_rot_pct, b_rot_pct)]:
+                top = max(va, vb)
+                bracket_y = top + 6
                 ax.plot([gx - w/2, gx - w/2, gx + w/2, gx + w/2],
-                        [bracket_y, bracket_y + max_val * 0.02,
-                         bracket_y + max_val * 0.02, bracket_y],
+                        [bracket_y, bracket_y + 1.5, bracket_y + 1.5, bracket_y],
                         'k-', lw=1.5, clip_on=False)
-                ax.text(gx, bracket_y + max_val * 0.03, sig_g,
-                        ha='center', va='bottom', fontsize=16, fontweight='bold')
+                ax.text(gx, bracket_y + 2.5, sig_g, ha='center', va='bottom',
+                        fontsize=16, fontweight='bold')
 
-        ax.set_ylim(0, max_val * 1.30)
+        ax.set_ylim(0, 130)
 
     # ---- (a) Control vs Psilocybin (split) ----
     _plot_split_panel(ax_a, 'Control', cs_all, cw_all,
                       'Psilocybin', ps_all, pw_all,
-                      '(a) Control vs Psilocybin')
+                      '(a) Control vs Psilocybin',
+                      sig_p=perm_fig_p['overall'])
 
     # ---- (b) Consistency Across Tasks (split: Standing | Rotating) ----
     task_display = ['Meditation', 'Music', 'Rest', 'Video']
@@ -491,37 +646,37 @@ def run_analysis():
     # For each task: two groups (Standing, Rotating), each with Ctrl + Psi bars
     # x layout: task_i*3 + 0 = Standing group, task_i*3 + 1 = Rotating group
     spacing = 2.5
-    all_max = max(max(ctrl_stable_vals), max(ctrl_switch_vals),
-                  max(psi_stable_vals), max(psi_switch_vals))
 
     for i, task in enumerate(task_order):
         cs_v, cw_v = ctrl_stable_vals[i], ctrl_switch_vals[i]
         ps_v, pw_v = psi_stable_vals[i], psi_switch_vals[i]
         base = i * spacing
 
+        cs_p, cw_p = _pct_within(cs_v, cw_v)   # control standing/rotating %
+        ps_p, pw_p = _pct_within(ps_v, pw_v)   # psilocybin standing/rotating %
+
         # Standing group: Ctrl blue, Psi red
-        ax_b.bar(base - w_b/2, cs_v, w_b, color=col_ctrl, zorder=2,
+        ax_b.bar(base - w_b/2, cs_p, w_b, color=col_ctrl, zorder=2,
                  label='Control' if i == 0 else None)
-        ax_b.bar(base + w_b/2, ps_v, w_b, color=col_psi, zorder=2,
+        ax_b.bar(base + w_b/2, ps_p, w_b, color=col_psi, zorder=2,
                  label='Psilocybin' if i == 0 else None)
 
         # Rotating group: Ctrl blue, Psi red
-        ax_b.bar(base + 1 - w_b/2, cw_v, w_b, color=col_ctrl, zorder=2)
-        ax_b.bar(base + 1 + w_b/2, pw_v, w_b, color=col_psi, zorder=2)
+        ax_b.bar(base + 1 - w_b/2, cw_p, w_b, color=col_ctrl, zorder=2)
+        ax_b.bar(base + 1 + w_b/2, pw_p, w_b, color=col_psi, zorder=2)
 
-        # Per-group significance brackets
-        for gx, ca, cb in [(base, cs_v, ps_v), (base + 1, cw_v, pw_v)]:
-            if ca + cb > 0:
-                _, p_g = chisquare([ca, cb])
-                sig_g = sig_stars(p_g)
-                top = max(ca, cb)
-                bracket_y = top + all_max * 0.06
+        # within-subject drug permutation p per task, annotated on both groups
+        p_prop = perm_fig_p.get(f'task:{task}')
+        if p_prop is not None:
+            sig_g = sig_stars(p_prop)
+            for gx, va, vb in [(base, cs_p, ps_p), (base + 1, cw_p, pw_p)]:
+                top = max(va, vb)
+                bracket_y = top + 5
                 ax_b.plot([gx - w_b/2, gx - w_b/2, gx + w_b/2, gx + w_b/2],
-                          [bracket_y, bracket_y + all_max * 0.02,
-                           bracket_y + all_max * 0.02, bracket_y],
+                          [bracket_y, bracket_y + 1.5, bracket_y + 1.5, bracket_y],
                           'k-', lw=1, clip_on=False)
-                ax_b.text(gx, bracket_y + all_max * 0.025, sig_g,
-                          ha='center', va='bottom', fontsize=14, fontweight='bold')
+                ax_b.text(gx, bracket_y + 2, sig_g,
+                          ha='center', va='bottom', fontsize=16, fontweight='bold')
 
     # X-axis: label each task with Standing/Rotating sublabels
     task_centers = [i * spacing + 0.5 for i in range(len(task_order))]
@@ -537,19 +692,18 @@ def run_analysis():
         tick_positions.append(i * spacing)
         tick_positions.append(i * spacing + 1)
     ax_b.set_xticks(tick_positions)
-    ax_b.set_xticklabels(sublabels, fontsize=17)
+    ax_b.set_xticklabels(sublabels, fontsize=16)
 
     # Add task names as secondary labels below
     for i, tname in enumerate(task_display):
         ax_b.text(i * spacing + 0.5, -0.10, tname,
-                  ha='center', va='top', fontsize=18, fontweight='bold',
+                  ha='center', va='top', fontsize=16, fontweight='bold',
                   transform=ax_b.get_xaxis_transform())
 
-    ax_b.set_ylabel('Number of Sequences', fontsize=18)
+    ax_b.set_ylabel('Percentage within group (%)', fontsize=18)
     ax_b.set_title('(b) Consistency Across Tasks', fontsize=21, fontweight='bold')
-    ax_b.tick_params(axis='y', labelsize=17)
-    ax_b.set_ylim(0, all_max * 1.30)
-    ax_b.legend(fontsize=16, loc='upper right', framealpha=0.8)
+    ax_b.set_ylim(0, 130)
+    ax_b.legend(fontsize=15, loc='upper center', ncol=2, framealpha=0.9)
     ax_b.set_axisbelow(True)
     ax_b.yaxis.grid(True, linestyle='--', alpha=0.3)
 
@@ -562,37 +716,36 @@ def run_analysis():
 
     w_c = 0.18
     spacing_c = 2.5
-    all_max_c = max(max(tu_cs), max(tu_cr), max(tu_ps), max(tu_pr))
 
     for i, tl in enumerate(tu_labels):
         base = i * spacing_c
+        cs_p, cr_p = _pct_within(tu_cs[i], tu_cr[i])   # control standing/rotating %
+        ps_p, pr_p = _pct_within(tu_ps[i], tu_pr[i])   # psilocybin standing/rotating %
 
         # Standing group: Ctrl blue, Psi red
-        ax_c.bar(base - w_c/2, tu_cs[i], w_c, color=col_ctrl, zorder=2,
+        ax_c.bar(base - w_c/2, cs_p, w_c, color=col_ctrl, zorder=2,
                  label='Control' if i == 0 else None)
-        ax_c.bar(base + w_c/2, tu_ps[i], w_c, color=col_psi, zorder=2,
+        ax_c.bar(base + w_c/2, ps_p, w_c, color=col_psi, zorder=2,
                  label='Psilocybin' if i == 0 else None)
 
         # Rotating group: Ctrl blue, Psi red
-        ax_c.bar(base + 1 - w_c/2, tu_cr[i], w_c, color=col_ctrl, zorder=2)
-        ax_c.bar(base + 1 + w_c/2, tu_pr[i], w_c, color=col_psi, zorder=2)
+        ax_c.bar(base + 1 - w_c/2, cr_p, w_c, color=col_ctrl, zorder=2)
+        ax_c.bar(base + 1 + w_c/2, pr_p, w_c, color=col_psi, zorder=2)
 
-        # Per-group significance brackets
-        for gx, ca, cb in [(base, tu_cs[i], tu_ps[i]),
-                           (base + 1, tu_cr[i], tu_pr[i])]:
-            if ca + cb > 0:
-                _, p_g = chisquare([ca, cb])
-                sig_g = sig_stars(p_g)
-                top = max(ca, cb)
-                bracket_y = top + all_max_c * 0.06
+        # within-subject drug permutation p, restricted to this training group
+        p_prop = perm_fig_p['trained_drug'] if i == 0 else perm_fig_p['untrained_drug']
+        if p_prop is not None:
+            sig_g = sig_stars(p_prop)
+            for gx, va, vb in [(base, cs_p, ps_p), (base + 1, cr_p, pr_p)]:
+                top = max(va, vb)
+                bracket_y = top + 5
                 ax_c.plot([gx - w_c/2, gx - w_c/2, gx + w_c/2, gx + w_c/2],
-                          [bracket_y, bracket_y + all_max_c * 0.02,
-                           bracket_y + all_max_c * 0.02, bracket_y],
+                          [bracket_y, bracket_y + 1.5, bracket_y + 1.5, bracket_y],
                           'k-', lw=1, clip_on=False)
-                ax_c.text(gx, bracket_y + all_max_c * 0.025, sig_g,
-                          ha='center', va='bottom', fontsize=14, fontweight='bold')
+                ax_c.text(gx, bracket_y + 2, sig_g,
+                          ha='center', va='bottom', fontsize=16, fontweight='bold')
 
-    # X-axis: S/R sublabels + group names below
+    # X-axis: S/O sublabels + group names below
     tick_positions_c = []
     sublabels_c = []
     for i in range(len(tu_labels)):
@@ -600,18 +753,17 @@ def run_analysis():
         tick_positions_c.append(i * spacing_c + 1)
         sublabels_c.extend(['S', 'O'])
     ax_c.set_xticks(tick_positions_c)
-    ax_c.set_xticklabels(sublabels_c, fontsize=17)
+    ax_c.set_xticklabels(sublabels_c, fontsize=16)
 
     for i, tl in enumerate(tu_labels):
         ax_c.text(i * spacing_c + 0.5, -0.10, tl,
-                  ha='center', va='top', fontsize=18, fontweight='bold',
+                  ha='center', va='top', fontsize=16, fontweight='bold',
                   transform=ax_c.get_xaxis_transform())
 
-    ax_c.set_ylabel('Number of Sequences', fontsize=18)
+    ax_c.set_ylabel('Percentage within group (%)', fontsize=18)
     ax_c.set_title('(c) Trained vs Untrained', fontsize=21, fontweight='bold')
-    ax_c.tick_params(axis='y', labelsize=17)
-    ax_c.set_ylim(0, all_max_c * 1.30)
-    ax_c.legend(fontsize=16, loc='upper left', framealpha=0.8)
+    ax_c.set_ylim(0, 130)
+    ax_c.legend(fontsize=15, loc='upper center', ncol=2, framealpha=0.9)
     ax_c.set_axisbelow(True)
     ax_c.yaxis.grid(True, linestyle='--', alpha=0.3)
 
@@ -633,33 +785,41 @@ def run_analysis():
         if cid in undefined_clusters:
             c_dominant.append('undefined')
         elif s >= w:
-            c_dominant.append('stable')
+            c_dominant.append('standing')
         else:
-            c_dominant.append('switching')
+            c_dominant.append('rotating')
 
     x_d = np.arange(len(cluster_ids))
     w_d = 0.35
 
-    # Standing bars: ctrl (solid blue) + psi (hatched blue)
-    ax_d.bar(x_d - w_d / 2, c_cs, w_d, color=col_standing, zorder=2,
-             label='Standing (Ctrl)')
-    ax_d.bar(x_d - w_d / 2, c_ps, w_d, bottom=c_cs, color=col_standing,
-             alpha=0.6, hatch='//', edgecolor='white', zorder=2,
-             label='Standing (Psi)')
+    # Normalize each drug to % of ITS OWN total sequences (control vs psilocybin),
+    # so the ~2:1 control/psilocybin imbalance does not dominate the per-cluster view.
+    ctrl_total = (sum(c_cs) + sum(c_cw)) or 1
+    psi_total = (sum(c_ps) + sum(c_pw)) or 1
+    c_cs_p = np.array(c_cs) / ctrl_total * 100   # ctrl standing % of all ctrl
+    c_cw_p = np.array(c_cw) / ctrl_total * 100   # ctrl rotating % of all ctrl
+    c_ps_p = np.array(c_ps) / psi_total * 100    # psi standing % of all psi
+    c_pw_p = np.array(c_pw) / psi_total * 100    # psi rotating % of all psi
 
-    # Rotating bars: ctrl (solid red) + psi (hatched red)
-    ax_d.bar(x_d + w_d / 2, c_cw, w_d, color=col_rotating, zorder=2,
+    # Stable bars: ctrl (solid blue) + psi (hatched blue)
+    ax_d.bar(x_d - w_d / 2, c_cs_p, w_d, color=col_standing, zorder=2,
+             label='Stable (Ctrl)')
+    ax_d.bar(x_d - w_d / 2, c_ps_p, w_d, bottom=c_cs_p, color=col_standing,
+             alpha=0.6, hatch='//', edgecolor='white', zorder=2,
+             label='Stable (Psi)')
+
+    # Oscillating bars: ctrl (solid red) + psi (hatched red)
+    ax_d.bar(x_d + w_d / 2, c_cw_p, w_d, color=col_rotating, zorder=2,
              label='Oscillating (Ctrl)')
-    ax_d.bar(x_d + w_d / 2, c_pw, w_d, bottom=c_cw, color=col_rotating,
+    ax_d.bar(x_d + w_d / 2, c_pw_p, w_d, bottom=c_cw_p, color=col_rotating,
              alpha=0.6, hatch='//', edgecolor='white', zorder=2,
              label='Oscillating (Psi)')
 
     ax_d.set_xticks(x_d)
-    ax_d.set_xticklabels(c_labels, fontsize=17)
+    ax_d.set_xticklabels(c_labels, fontsize=16)
     ax_d.set_xlabel('Cluster ID', fontsize=18)
-    ax_d.set_ylabel('Number of Sequences', fontsize=18)
-    ax_d.set_title('(d) Cluster-Specific Sequence Counts', fontsize=21, fontweight='bold')
-    ax_d.tick_params(axis='y', labelsize=17)
+    ax_d.set_ylabel("Percentage of group's sequences (%)", fontsize=18)
+    ax_d.set_title('(d) Cluster-Specific Sequence Distribution', fontsize=21, fontweight='bold')
     ax_d.set_axisbelow(True)
     ax_d.yaxis.grid(True, linestyle='--', alpha=0.3)
 
@@ -671,7 +831,9 @@ def run_analysis():
         Patch(facecolor=col_rotating, alpha=0.6, hatch='//', edgecolor='white',
               label='Oscillating (Psi)'),
     ]
-    ax_d.legend(handles=legend_elements, fontsize=16, loc='upper right', ncol=2)
+    ax_d.set_ylim(0, max(1.0, (c_cs_p + c_ps_p).max(), (c_cw_p + c_pw_p).max()) * 1.28)
+    ax_d.legend(handles=legend_elements, fontsize=15, loc='upper center', ncol=2,
+                framealpha=0.9)
 
     plt.tight_layout()
     plt.savefig(OUTPUT_FILE, dpi=150, bbox_inches='tight')
@@ -689,6 +851,6 @@ if __name__ == '__main__':
     text = output.getvalue()
     print(text, end='')
 
-    results_file = Path(__file__).parent / 'main_analysis_results.txt'
+    results_file = _out_dir() / 'main_analysis_results.txt'
     results_file.write_text(text)
     print(f"Results saved to: {results_file}")

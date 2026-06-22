@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
-"""
-Combined Cluster Verification: Sign-encoded vs Continuous Avalanches (Max Correlation)
+"""Cluster detection validation (paper Figure 2).
 
-Like cluster_verification_combined.py, but instead of finding the max
-correlation across all time offsets for each (avalanche, detector) pair,
-this script:
-  1. Finds the best time offset for the SELF cluster template only
-  2. At that same offset, computes the correlation with ALL other templates
+Quantifies how distinguishable the 12 consensus cluster templates are when
+used as detectors on the data. For each (avalanche, detector) pair the best
+time offset is chosen for the SELF template only; at that same offset the
+correlation with every other template is computed. This is done both for the
+sign-encoded avalanches and for the continuous EEG at the same time windows,
+showing that the self-vs-competitor separation that is clear in sign-encoded
+data shrinks in continuous data (motivating the high backfitting threshold).
 
 Layout:
-    Row 1 (Sign-encoded):     (a) Cross-detection heatmap  (b) Self vs competitor violin
-    Row 2 (Continuous):  (c) Cross-detection heatmap  (d) Self vs competitor violin
+    Row 1 (sign-encoded): (a) cross-detection heatmap  (b) self vs competitor
+    Row 2 (continuous):   (c) cross-detection heatmap  (d) self vs competitor
 
-Output:
-    - cluster_verification.pdf
+Output: cluster_verification.pdf (to REGEN_OUTPUT_DIR, else the script dir).
 """
 
+import os
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -29,11 +30,19 @@ from matplotlib.patches import Patch
 
 from psiconnect_utils import BASE_DIR
 
+
+def _out_dir() -> Path:
+    """Output dir for the regenerated figure; defaults to script dir so the
+    committed original is never overwritten unless REGEN_OUTPUT_DIR is set."""
+    d = os.environ.get('REGEN_OUTPUT_DIR')
+    return Path(d) if d else Path(__file__).parent
+
+
 # Paths (all relative to PSICONNECT_DATA_DIR)
 AVALANCHE_FILE = BASE_DIR / 'avalanches.pkl'
 DATASETS_FILE = BASE_DIR / 'datasets.pkl'
 PEAK_TIMES_FILE = BASE_DIR / 'avalanche_times.pkl'
-OUTPUT_FILE = Path(__file__).parent / 'cluster_verification.pdf'
+OUTPUT_FILE = _out_dir() / 'cluster_verification.pdf'
 
 
 # ======================================================================
@@ -182,7 +191,7 @@ def build_avalanche_to_dataset_mapping(peak_avalanche_times):
 
 
 # ======================================================================
-# sign encoded avalanche cross-detection (forced)
+# Sign-encoded avalanche cross-detection (forced)
 # ======================================================================
 
 def compute_cross_detection_binary_forced(flat_avalanches, cluster_averages,
@@ -368,7 +377,6 @@ def plot_violin(ax, cross_matrix, corr_accum, cluster_ids, n_clusters,
                  fontsize=TITLE_SIZE)
     ax.tick_params(axis='y', labelsize=TICK_SIZE)
     ax.set_ylim(0, 1.0)
-    ax.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5)
 
 
 def print_summary(label, cross_matrix, cluster_ids, n_clusters):
@@ -419,7 +427,7 @@ def main():
     n_clusters = len(cluster_ids)
     print(f"  {n_clusters} clusters: {cluster_ids}")
 
-    # --- Binary cross-detection (forced) ---
+    # --- Sign-encoded cross-detection (forced) ---
     print("\nComputing binary cross-detection...")
     cross_bin, accum_bin = compute_cross_detection_binary_forced(
         flat_avalanches, cluster_averages, cluster_assignments, cluster_ids
@@ -447,7 +455,7 @@ def main():
     gs = fig.add_gridspec(3, 2, hspace=0.35, wspace=0.3,
                           left=0.06, right=0.98, top=0.97, bottom=0.04)
 
-    # Row 1: Binary
+    # Row 1: Sign-encoded
     ax_a = fig.add_subplot(gs[0, 0])
     ax_b = fig.add_subplot(gs[0, 1])
     plot_heatmap(ax_a, cross_bin, cluster_ids, n_clusters, 'a',
@@ -483,7 +491,7 @@ def main():
     print(f"\nSaved: {OUTPUT_FILE}")
 
     # --- Summary stats ---
-    print_summary("Binary", cross_bin, cluster_ids, n_clusters)
+    print_summary("Sign-encoded", cross_bin, cluster_ids, n_clusters)
     print_summary("Continuous", cross_cont, cluster_ids, n_clusters)
 
 

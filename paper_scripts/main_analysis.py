@@ -519,6 +519,14 @@ def run_analysis():
     perm_fig_p = {'overall': perm_fdr[0]}
     for i, task in enumerate(task_order):
         perm_fig_p[f'task:{task}'] = perm_fdr[1 + i]
+    # Per-cluster within-subject drug effect (panel d). Clusters with no paired
+    # subjects were skipped above and so have no entry; their bars get no
+    # asterisk. Keyed off perm_labels so the FDR index stays aligned even when
+    # some clusters are dropped.
+    for i, label in enumerate(perm_labels):
+        if label.startswith('Cluster '):
+            cid = int(label.split()[1])
+            perm_fig_p[f'cluster:{cid}'] = perm_fdr[i]
     td_raw = within_subject_permutation_test(
         _drug_records(trained_bin), n_perm=N_PERM, seed=PERM_SEED).p_value
     ud_raw = within_subject_permutation_test(
@@ -814,6 +822,20 @@ def run_analysis():
     ax_d.bar(x_d + w_d / 2, c_pw_p, w_d, bottom=c_cw_p, color=col_rotating,
              alpha=0.6, hatch='//', edgecolor='white', zorder=2,
              label='Oscillating (Psi)')
+
+    # Significance asterisks per cluster: FDR-corrected within-subject drug
+    # effect (stable vs oscillating, ctrl vs psi), matching panels a-c. Placed
+    # above the taller of the cluster's two stacked bars. Clusters with no
+    # paired subjects (skipped permutation test) get no annotation.
+    stable_tot = c_cs_p + c_ps_p
+    osc_tot = c_cw_p + c_pw_p
+    for j, cid in enumerate(cluster_ids):
+        p_clu = perm_fig_p.get(f'cluster:{cid}')
+        if p_clu is None:
+            continue
+        top = max(stable_tot[j], osc_tot[j])
+        ax_d.text(x_d[j], top + 1.5, sig_stars(p_clu), ha='center', va='bottom',
+                  fontsize=16, fontweight='bold')
 
     ax_d.set_xticks(x_d)
     ax_d.set_xticklabels(c_labels, fontsize=16)

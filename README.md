@@ -2,8 +2,7 @@
 
 Code for the paper:
 
-> **Psilocybin Silences Rotating Spatiotemporal Patterns in Human Cortical Avalanches**
-> *Uncovering the spatiotemporal structure of neural avalanches through optimal transport and dynamic time warping*
+> **Uncovering the spatiotemporal structure of neural avalanches through optimal transport and dynamic time warping**
 
 A Python package for analyzing EEG avalanches with spatial and temporal alignment methods.
 

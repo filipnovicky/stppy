@@ -2,7 +2,7 @@
 
 Code for the paper:
 
-> **Uncovering the spatiotemporal structure of neural avalanches through optimal transport and dynamic time warping**
+> **Uncovering the spatiotemporal structure of neural avalanches through optimal transport and dynamic time warping (https://www.biorxiv.org/content/10.64898/2026.07.10.737743v1)**
 
 A Python package for analyzing EEG avalanches with spatial and temporal alignment methods.
 
@@ -118,6 +118,7 @@ If you use this package in your research, please cite:
 
 ```
 Uncovering the spatiotemporal structure of neural avalanches through optimal transport and dynamic time warping
+(https://www.biorxiv.org/content/10.64898/2026.07.10.737743v1)
 ```
 
 ## License

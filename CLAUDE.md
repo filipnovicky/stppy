@@ -13,7 +13,8 @@ stppy/           # installable package (pip install -e .)
   detection/     # threshold-based avalanche detection, correlation-based sequence detection
   alignment/     # spatial (optimal transport) + temporal (DTW/subDTW) alignment
   clustering/    # hierarchical clustering, consensus alignment
-  visualization/ # topomaps, videos
+  jacobian/      # Hilbert phase gradient, per-polarity movement arrows, travelling/standing (0.2.0)
+  visualization/ # topomaps, videos, all-clusters-with-arrows figure
   utils/         # pairwise distances
 
 paper_scripts/   # standalone analysis scripts for the paper — NOT part of the package

@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -N s010_finR
+#PBS -q qlong
+#PBS -l walltime=06:00:00
+#PBS -l select=1:ncpus=3:mem=48gb
+#PBS -o /home/novicky/logs/s010_finR.log
+#PBS -e /home/novicky/logs/s010_finR.err
+
+# Stage 2b + 3 for any RUN: merge 16 blocks, then clusters + consensi at t=5, 6, 7 in parallel.
+set -eu
+source /home/novicky/miniconda3/etc/profile.d/conda.sh
+conda activate base
+cd /home/novicky/stppy010_anphy61_n2
+export NBLOCKS=16 OMP_NUM_THREADS=1 NUMBA_NUM_THREADS=1
+python -u merge.py
+for t in 5 6 7; do CLUSTER_THRESHOLD=$t python -u cluster.py > runs/$RUN/recut_t$t.log 2>&1 & done
+wait

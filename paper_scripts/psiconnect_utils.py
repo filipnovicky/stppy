@@ -8,7 +8,6 @@ and therefore live outside the general-purpose stppy package.
 
 import os
 import numpy as np
-from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 from collections import defaultdict
 
@@ -17,7 +16,7 @@ from collections import defaultdict
 # CONSTANTS
 # ======================================================================
 
-BASE_DIR = Path(os.environ.get('PSICONNECT_DATA_DIR', 'data'))
+from paper_config import RUN_DIR as BASE_DIR  # noqa: E402,F401  (re-exported; all paths: paper_config.py)
 
 DRUG_LABELS = {'ctrl': 'Control', 'psi': 'Psilocybin'}
 
@@ -28,9 +27,9 @@ TASK_LABELS = {
     'video': 'Video'
 }
 
-POL_ORDER = ['stable', 'switching', 'mixed', 'single']
+POL_ORDER = ['standing', 'rotating', 'mixed', 'single']
 
-POLARITY_TYPES = ['stable', 'switching', 'long_switching', 'mixed', 'single']
+POLARITY_TYPES = ['standing', 'rotating', 'long_rotating', 'mixed', 'single']
 
 
 # ======================================================================
@@ -86,7 +85,7 @@ def determine_polarity(pols):
 
     unique = set(pols)
     if len(unique) == 1:
-        return 'stable'
+        return 'standing'
 
     is_alternating = True
     for i in range(1, len(pols)):
@@ -95,7 +94,7 @@ def determine_polarity(pols):
             break
 
     if is_alternating:
-        return 'switching'
+        return 'rotating'
 
     return 'mixed'
 

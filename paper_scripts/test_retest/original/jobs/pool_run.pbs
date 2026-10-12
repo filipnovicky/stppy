@@ -1,0 +1,14 @@
+#!/bin/bash
+#PBS -N s010_pool
+#PBS -q qlong
+#PBS -l walltime=00:30:00
+#PBS -l select=1:ncpus=1:mem=16gb
+#PBS -o /home/novicky/logs/s010_pool.log
+#PBS -e /home/novicky/logs/s010_pool.err
+
+# Stage 1b for RUN: draw N_ORIG originals evenly across recordings.
+set -eu
+source /home/novicky/miniconda3/etc/profile.d/conda.sh
+conda activate base
+cd /home/novicky/stppy010_anphy61_n2
+python -u pool.py

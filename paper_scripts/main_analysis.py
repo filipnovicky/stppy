@@ -16,14 +16,13 @@ conditions differ in total sequence yield, the figure reports within-
 condition proportions, with significance asterisks taken from the
 FDR-corrected permutation tests.
 
-Input files (from PSICONNECT_DATA_DIR):
+Input files (from paper_config.RUN_DIR):
     - sequences_by_cluster.pkl: {cluster_id: [sequence_dicts, ...]}
     - cluster_averages.pkl:     {cluster_id: array} for cluster durations
-Outputs (to REGEN_OUTPUT_DIR, else the script directory):
+Outputs (to paper_config.RESULTS_DIR / figure3):
     - main_results.pdf, main_analysis_results.txt
 """
 
-import os
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -32,14 +31,9 @@ import stppy.io
 
 
 def _out_dir() -> Path:
-    """Output directory for regenerated results/figure.
-
-    Defaults to the script directory (original behaviour); set
-    REGEN_OUTPUT_DIR to redirect regenerated outputs elsewhere so the
-    committed originals in paper_scripts/ are never overwritten.
-    """
-    d = os.environ.get('REGEN_OUTPUT_DIR')
-    return Path(d) if d else Path(__file__).parent
+    """Output directory for the Figure 3 results (paper_config.RESULTS_DIR / figure3)."""
+    import paper_config
+    return paper_config.results('figure3')
 
 import numpy as np
 from collections import defaultdict
@@ -48,6 +42,7 @@ from psiconnect_utils import (
     parse_condition, polarity_summary, sig_stars, benjamini_hochberg,
     DRUG_LABELS, TASK_LABELS, POLARITY_TYPES, BASE_DIR
 )
+from participant_stats.panel_e import plot_participant_panel
 from psiconnect_permutation import (
     within_subject_permutation_test, between_subject_permutation_test
 )
@@ -58,15 +53,21 @@ def remove_overlapping_bursts(bursts_by_cluster, cluster_averages):
     Remove bursts that temporally overlap with bursts from other clusters.
 
     Returns a new dict with only non-overlapping ("pure") bursts per cluster.
+    Overlaps are measured in integer samples (stppy 0.2.0 stores start/end
+    samples; 0.1.0 pickles are converted from seconds), so a pair overlapping
+    by exactly the minimum template length is removed regardless of float
+    rounding of its absolute position.
     """
+    sfreq = 250.0
     cluster_ids = sorted(bursts_by_cluster.keys())
 
-    # Cluster durations from averages (samples / sfreq)
-    cluster_durations = {}
-    for cid, avg in cluster_averages.items():
-        cluster_durations[cid] = avg.shape[1] / 250.0
+    # Cluster durations from averages (samples)
+    cluster_lengths = {cid: avg.shape[1] for cid, avg in cluster_averages.items()}
 
-    min_overlap = min(cluster_durations.values()) if cluster_durations else 0.040
+    min_overlap = min(cluster_lengths.values()) if cluster_lengths else 10
+
+    def _sample(b, key):
+        return b.get(f'{key}_sample', int(round(b[f'{key}_time'] * sfreq)))
 
     # Group all bursts by dataset, keeping track of cluster and original index
     bursts_by_dataset = defaultdict(list)
@@ -75,8 +76,8 @@ def remove_overlapping_bursts(bursts_by_cluster, cluster_averages):
             bursts_by_dataset[b['dataset']].append({
                 'cluster_id': cid,
                 'burst_idx': idx,
-                'start_time': b['start_time'],
-                'end_time': b['end_time'],
+                'start_time': _sample(b, 'start'),
+                'end_time': _sample(b, 'end'),
             })
 
     # Find all overlapping burst indices per cluster
@@ -97,9 +98,9 @@ def remove_overlapping_bursts(bursts_by_cluster, cluster_averages):
 
                 overlap_start = max(b1['start_time'], b2['start_time'])
                 overlap_end = min(b1['end_time'], b2['end_time'])
-                overlap_sec = overlap_end - overlap_start
+                overlap_samples = overlap_end - overlap_start
 
-                if overlap_sec >= min_overlap:
+                if overlap_samples >= min_overlap:
                     overlapping[b1['cluster_id']].add(b1['burst_idx'])
                     overlapping[b2['cluster_id']].add(b2['burst_idx'])
 
@@ -110,7 +111,7 @@ def remove_overlapping_bursts(bursts_by_cluster, cluster_averages):
 
     print("OVERLAP FILTERING SUMMARY")
     print("=" * 60)
-    print(f"Minimum overlap threshold: {min_overlap*1000:.1f}ms")
+    print(f"Minimum overlap threshold: {min_overlap / sfreq * 1000:.1f}ms")
     print()
 
     for cid in cluster_ids:
@@ -558,10 +559,13 @@ def run_analysis():
     col_standing = '#2166AC'   # blue for standing (panel d)
     col_rotating = '#D6604D'   # red-orange for rotating (panel d)
 
-    fig, axes = plt.subplots(2, 2, figsize=(20, 12),
-                             gridspec_kw={'width_ratios': [1, 2]})
-    ax_a, ax_b = axes[0]
-    ax_c, ax_d = axes[1]
+    # Panels a-d as before; panel e (participant-level stable share) spans
+    # both rows on the right.
+    fig = plt.figure(figsize=(27, 12))
+    gs = fig.add_gridspec(2, 3, width_ratios=[1, 2, 0.75])
+    ax_a, ax_b = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])
+    ax_c, ax_d = fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1])
+    ax_e = fig.add_subplot(gs[:, 2])
 
     # Bars are normalized to PERCENTAGES WITHIN each drug group (control /
     # psilocybin) so the ~2:1 data imbalance (control has ~2x the sequences
@@ -856,6 +860,10 @@ def run_analysis():
     ax_d.set_ylim(0, max(1.0, (c_cs_p + c_ps_p).max(), (c_cw_p + c_pw_p).max()) * 1.28)
     ax_d.legend(handles=legend_elements, fontsize=15, loc='upper center', ncol=2,
                 framealpha=0.9)
+
+    panel_e = plot_participant_panel(ax_e, binary_bursts, col_ctrl, col_psi, sig_stars)
+    print(f"  Panel e (participant level): n={panel_e['n']} paired, "
+          f"sign-flip p={panel_e['p']:.4f}")
 
     plt.tight_layout()
     plt.savefig(OUTPUT_FILE, dpi=150, bbox_inches='tight')

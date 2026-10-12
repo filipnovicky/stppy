@@ -1,0 +1,16 @@
+#!/bin/bash
+#PBS -N ds4148_prep
+#PBS -q qlong
+#PBS -J 1-360
+#PBS -l walltime=01:00:00
+#PBS -l select=1:ncpus=1:mem=8gb
+#PBS -o /home/novicky/logs/ds4148_prep^array_index^.log
+#PBS -e /home/novicky/logs/ds4148_prep^array_index^.err
+
+# 60 subjects x 3 sessions x {EC, EO} = 360 recordings, one per element (~15 s CPU each with 1 thread).
+set -eu
+source /home/novicky/miniconda3/etc/profile.d/conda.sh
+conda activate base
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+cd /home/novicky/ds004148_preprocessed
+python -u preprocess_ds004148.py

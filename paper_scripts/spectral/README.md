@@ -1,7 +1,7 @@
 # Spectral analysis of the detected sequences
 
-Tests whether the recurring sequences coincide with alpha activity in the EEG (response to
-reviewers, R3.3c). The spectrum of the original EEG around each sequence is compared with random
+Tests whether the recurring sequences coincide with alpha activity in the EEG (Figure 4,
+Section 2.2.4). The spectrum of the original EEG around each sequence is compared with random
 windows from the same recording, and the height of the alpha peak is compared between oscillating
 and stable sequences, per cluster.
 

@@ -56,7 +56,7 @@ def test_cluster_8_changes_cell_under_psilocybin():
 
 def test_sequence_table_excludes_cluster_3():
     st = sequence_table(_counts_from_table2(), "ctrl")
-    assert np.array_equal(st, [[1464, 1], [332, 300]])
+    assert np.array_equal(st, [[1527, 1], [367, 309]])
 
 
 def test_fisher_on_cluster_counts():

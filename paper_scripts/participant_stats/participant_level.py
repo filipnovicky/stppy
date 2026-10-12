@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Participant-level polarity proportions, occurrence rates and models (R2.7).
+"""Participant-level polarity proportions, occurrence rates and models.
 
-Two reviewer requests, both answered with the participant (not the sequence)
-as the unit:
+Both with the participant (not the sequence) as the unit:
 
 1. Stable/oscillating PROPORTIONS per participant and session, tested so that
    every participant weighs the same (paired Wilcoxon + sign-flip permutation

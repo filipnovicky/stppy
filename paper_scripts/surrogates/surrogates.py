@@ -1,4 +1,4 @@
-"""Null-model surrogates for continuous multichannel EEG (response to reviewers, S1).
+"""Null-model surrogates for continuous multichannel EEG (Section 2.1, Figures 9-10).
 
 phase_randomise     multivariate FT surrogate (Prichard & Theiler 1994): ONE random phase per
                     frequency, added to every channel, so all auto- AND cross-spectra are
@@ -27,7 +27,7 @@ modewise_iaaft      mode-wise phase randomisation made amplitude-adjusted: IAAFT
                     step is time-reversal equivariant and the start is time-reversible, so the
                     output has no preferred direction: patterns can grow and decay in place
                     but not travel. The amplitude-matched no-propagation null next to IAAFT.
-circular_shift      independent circular shift per channel (R3.4's "temporal-shift"
+circular_shift      independent circular shift per channel (a "temporal-shift"
                     control): each channel is kept exactly, cross-channel timing is destroyed.
 
 All three treat the recording as periodic. The wrap-around joins the recording's last sample

@@ -129,10 +129,8 @@ The scripts in `paper_scripts/` are not part of the package.
    The surrogate (Figures 9-10) and test-retest (Figure 8) analyses are sequences of scripts run on a
    cluster, documented in `paper_scripts/surrogates/` and `paper_scripts/test_retest/`.
 
-The paper's numbers were produced in the environment of `environment.yml` (Python 3.11, numpy 2.0.1
-built against MKL, scipy 1.16.0, mne 1.10.1). Other builds change the preprocessed signals in the
-last bits, which can move single threshold crossings (a pip install of the same versions, with
-OpenBLAS, finds 5107 instead of 5108 avalanches).
+The numbers are identical only in the `environment.yml` environment; other numpy/BLAS builds can
+differ in the last bits and move single threshold crossings (e.g. 5107 instead of 5108 avalanches).
 
 ## Dependencies
 

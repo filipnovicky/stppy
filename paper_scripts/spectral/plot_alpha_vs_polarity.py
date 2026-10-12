@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Does the session change in alpha power track the change in sequence polarity? (R1.1 / R2.5)
+"""Does the session change in alpha power track the change in sequence polarity? (Figure 4)
 
   a  power spectrum around oscillating and stable sequences and around random windows
      (unchanged from plot_sequence_spectra.py)

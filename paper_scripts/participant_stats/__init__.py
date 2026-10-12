@@ -1,4 +1,4 @@
-"""Participant-level statistics for the response to reviewers.
+"""Participant-level statistics of the paper.
 
 Every analysis here treats the participant, not the sequence, as the unit:
 proportions, occurrence rates and mixed models (``participant_level``), the

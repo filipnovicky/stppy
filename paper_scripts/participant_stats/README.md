@@ -20,13 +20,13 @@ python -m pytest participant_stats                # tests
 
 ## What each script answers
 
-| script | reviewer point | output (`RESULTS_DIR/`, see `../paper_config.py`) | manuscript |
-|---|---|---|---|
-| `build_recordings.py` | - | `participant_level/recordings.csv` | input for the rates |
-| `participant_counts.py` | R2 minor 2 | `participant_counts/participant_counts.csv` | Table 2 participant column, N in Figure 3b caption, N of the cluster-8 test |
-| `participant_level.py` | R2.7 | `participant_level/` (`paired_tests.csv`, `models.csv`, `participant_level.png`) | mixed model OR / CI / N, rates per minute |
-| `table1_composition.py` | R2 minor 3 | `table1/` (`composition_tests.csv`, `composition_check.csv`) | Table 1 test and correction family |
-| `panel_e.py` | R2.7 | drawn by `main_analysis.py` into `figure3/main_results.pdf` | Figure 3e |
+| script | output (`RESULTS_DIR/`, see `../paper_config.py`) | manuscript |
+|---|---|---|
+| `build_recordings.py` | `participant_level/recordings.csv` | input for the rates |
+| `participant_counts.py` | `participant_counts/participant_counts.csv` | Table 2 participant column, N in Figure 3b caption, N of the cluster-8 test |
+| `participant_level.py` | `participant_level/` (`paired_tests.csv`, `models.csv`, `participant_level.png`) | mixed model OR / CI / N, rates per minute |
+| `table1_composition.py` | `table1/` (`composition_tests.csv`, `composition_check.csv`) | Table 1 test and correction family |
+| `panel_e.py` | drawn by `main_analysis.py` into `figure3/main_results.pdf` | Figure 3e |
 
 Shared code: `paths.py` (all locations), `data.py` (loaders), `stats.py` (sign-flip, bootstrap,
 rank-biserial, chi-square).

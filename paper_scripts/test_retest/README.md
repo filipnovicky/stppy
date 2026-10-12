@@ -10,7 +10,7 @@ recordings (60 participants x 3 sessions = 180 recordings).
 The analysis was run with the scripts in `original/`, copied unchanged from the analysis
 directory (including its absolute paths); the cluster job files, which only ran the commands
 below, are left out. The scripts import stppy 0.1.0 (pinned in `original/config.py`), whose
-detection, alignment and clustering code is byte-identical to this repository's (no
+detection, alignment and clustering code is the same as this repository's (no
 back-fitting is involved, so the 0.2.0 chaining fix does not apply). To rerun them, set the paths
 in `original/config.py` and at the top of `original/preprocess_ds004148.py`; steps 1-5 and 7 run
 from `original/` with `RUN=ds4148_EC`.
@@ -31,10 +31,7 @@ from `original/` with `RUN=ds4148_EC`.
 7. **Candidate clusters** - `RUN=ds4148_EC CLUSTER_THRESHOLD=3.84 MIN_SIZE=10 python candidates.py`:
    average linkage at 3.84, minimum size 10, DTW consensus, polarity de-duplication (30 clusters).
 8. **Figure 8 and the matching numbers** - `python test_retest/plot_test_retest_clusters.py` (from
-   `paper_scripts/`; the recipe that produced the submitted figure, only the title differs):
-   Hungarian matching on the 60 shared channels, null with permuted electrode labels
-   (50 permutations), travelling at 0.7 of the PsiConnect reference arrow.
+   `paper_scripts/`): Hungarian matching on the 60 shared channels, null with permuted electrode
+   labels (50 permutations), travelling at 0.7 of the PsiConnect reference arrow.
 
 Steps 6 and 8 read `TEST_RETEST_DIR` (paper_config.py) and write to `RESULTS_DIR/test_retest`.
-Below the title the figure is pixel-identical to the submitted one when rendered in the `base`
-conda env (numpy 2.3.3, matplotlib 3.10.6).

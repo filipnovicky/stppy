@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Travelling/standing x stable/oscillating cross-tabulation (response to reviewers, R1.3).
+"""Travelling/standing x stable/oscillating cross-tabulation (Table 3).
 
 Two properties of a cluster, measured at different timescales:
 
 - travelling / standing: spatial evolution WITHIN one template (40-44 ms). This is the
-  paper's classification (TRAVELLING below), which the stppy020 pole-arrow measure
-  reproduces (stronger pole >= 0.75 of the longest arrow).
+  paper's classification (TRAVELLING below).
 - stable / oscillating: polarity relation BETWEEN successive back-fitted occurrences of the
   template in the continuous EEG (a sequence).
 
@@ -50,9 +49,9 @@ POLARITIES = ("oscillating", "stable")
 
 # Paper Table 2: cluster -> (ctrl stable, ctrl oscillating, psi stable, psi oscillating)
 TABLE2 = {
-    0: (0, 128, 0, 38), 1: (1, 38, 0, 6), 2: (1, 630, 0, 171), 4: (0, 64, 0, 29),
-    5: (0, 642, 0, 195), 6: (18, 50, 4, 12), 7: (74, 1, 49, 1), 8: (103, 225, 192, 78),
-    9: (80, 4, 33, 0), 10: (0, 14, 0, 3), 11: (24, 0, 6, 0),
+    0: (0, 134, 0, 40), 1: (1, 42, 0, 8), 2: (1, 663, 0, 176), 4: (0, 64, 0, 30),
+    5: (0, 666, 0, 203), 6: (19, 54, 4, 12), 7: (75, 1, 51, 1), 8: (108, 248, 191, 80),
+    9: (82, 4, 35, 0), 10: (0, 18, 0, 3), 11: (24, 0, 6, 0),
 }
 
 Counts = dict[tuple[int, str], dict[str, int]]
@@ -122,7 +121,7 @@ def check_table2(counts: Counts) -> list[str]:
 
 
 def report(counts: Counts) -> str:
-    lines = ["Travelling/standing x stable/oscillating (R1.3)",
+    lines = ["Travelling/standing x stable/oscillating (Table 3)",
              f"travelling clusters: {sorted(TRAVELLING)}; excluded: {sorted(EXCLUDED)}", ""]
     bad = check_table2(counts)
     lines.append("Counts match paper Table 2: " + ("yes" if not bad else "NO"))

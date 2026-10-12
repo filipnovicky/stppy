@@ -5,12 +5,11 @@ Dataset: Wang, Duan, Dong, Ding & Lei (2022), "A test-retest resting, and cognit
 dataset during multiple subject-driven states", Scientific Data 9, 566
 (doi:10.1038/s41597-022-01607-9; OpenNeuro ds004148), eyes-closed resting recordings.
 
-Same recipe as the script that produced the submitted figure (RUN=ds4148_EC T=3.84
-MIN_SIZE=10); only the title names the dataset. Hungarian one-to-one matching
+Parameters as in the paper (RUN=ds4148_EC, cut 3.84, minimum size 10). Hungarian one-to-one matching
 on the back-fit similarity (best-shift frame-wise |r|, surrogates/compare.py) over the shared
 channels, each matched consensus flipped to the template's polarity, pole arrows classified
 against the PsiConnect repertoire's longest arrow at 0.7, null = electrode-label permutation
-of all candidates with the matching redone (N_PERM, default 50 as in the submitted run).
+of all candidates with the matching redone (N_PERM, default 50 as in the paper).
 
 Inputs (read only): the ds004148 run directory (paper_config.TEST_RETEST_DIR:
 candidates_t3.84_min10.npz, electrode_positions_m.json) and the paper templates
@@ -84,7 +83,7 @@ def main() -> int:
         sizes_k[keys[i]] = int(sizes[j])
         r_k[keys[i]] = round(float(sim[i, j]), 2)
     if len(matched) != len(keys):
-        raise RuntimeError("fewer candidates than templates; the submitted figure had all 12 matched")
+        raise RuntimeError("fewer candidates than templates; the paper's figure has all 12 matched")
 
     fig = stppy.visualization.plot_clusters_with_arrows(
         matched, run_pos, cluster_sizes=sizes_k, title=TITLE, classify_frac=TRAVEL_FRAC,

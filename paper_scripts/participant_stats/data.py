@@ -1,8 +1,8 @@
 """Loaders for the paper's sequences, clustered events and recordings.
 
 Everything is read from the paper run (``paths.PAPER_DIR``); nothing is
-recomputed. Sequences are the back-fitted ones after the 44 ms cross-cluster
-overlap removal of ``main_analysis.remove_overlapping_bursts`` (2915).
+recomputed. Sequences are the back-fitted ones after the cross-cluster
+overlap removal (>= 11 samples) of ``main_analysis.remove_overlapping_bursts`` (3045).
 """
 
 from __future__ import annotations

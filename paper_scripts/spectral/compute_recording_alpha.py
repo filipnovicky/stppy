@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Whole-recording power spectrum of every paper recording (response to reviewers, R1.1 / R2.5).
+"""Whole-recording power spectrum of every paper recording (Figure 4c).
 
-Reviewer 1 asks whether the psilocybin shift from oscillating to stable sequences restates the
-well-known psilocybin reduction of alpha power. This script gives every recording's ordinary
+Does the psilocybin shift from oscillating to stable sequences restate the well-known
+psilocybin reduction of alpha power? This script gives every recording's ordinary
 alpha power, independent of any sequence: Welch spectrum of the whole preprocessed recording
 (datasets.pkl: 64 channels, 250 Hz), 1.024 s Hann segments (as the sequence windows), 50%
 overlap, zero-padded to NFFT, averaged over channels.

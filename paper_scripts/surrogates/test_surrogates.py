@@ -1,4 +1,4 @@
-"""Surrogates for the reviewer null models (response S1).
+"""Tests of the null-model surrogates.
 
 Multivariate IAAFT must keep, per channel, the exact amplitude distribution and (to within
 the iteration tolerance) the power spectrum, and across channels the cross-spectral phase

@@ -6,7 +6,7 @@ duplicates are removed before any repertoire is reported. Templates are matched 
 with the Hungarian algorithm; the null permutes the electrode labels of the arm's templates,
 which keeps every template's value distribution and destroys its topography.
 
-Propagation is the stppy020 pole-arrow measure. `classify_propagation` is RELATIVE to the
+Propagation is the pole-arrow measure of stppy.jacobian. `classify_propagation` is RELATIVE to the
 longest arrow in one figure, so every arm is classified against the PAPER repertoire's
 reference -- otherwise "travelling" would mean something different in each arm.
 """

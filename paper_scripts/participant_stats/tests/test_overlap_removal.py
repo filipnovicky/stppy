@@ -1,4 +1,4 @@
-"""Tests for main_analysis.remove_overlapping_bursts (44 ms cross-cluster overlap rule)."""
+"""Tests for main_analysis.remove_overlapping_bursts (cross-cluster overlap rule, >= 11 samples)."""
 
 import numpy as np
 import pytest

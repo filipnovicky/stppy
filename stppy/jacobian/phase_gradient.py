@@ -1,9 +1,5 @@
 """Hilbert phase gradient on an irregular electrode layout.
 
-Ported from stppy 1.0.0 (``stppy.jacobian.hilbert.compute_phase_gradient``) and the
-operator builder of complete_analysis_stppy100 (``compute_consensus_jacobian``), so
-0.2.0 needs neither package at runtime.
-
 Sign convention: Hilbert phase ``phi = wt - k.r`` gives ``grad(phi) = -k``. The raw
 output of :func:`compute_phase_gradient` is therefore opposite to the propagation
 direction; :func:`propagation_field` returns the negated (physical) field.

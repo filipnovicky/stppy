@@ -83,7 +83,7 @@ def main() -> int:
         sizes_k[keys[i]] = int(sizes[j])
         r_k[keys[i]] = round(float(sim[i, j]), 2)
     if len(matched) != len(keys):
-        raise RuntimeError("fewer candidates than templates; the paper's figure has all 12 matched")
+        raise RuntimeError("fewer candidates than templates")
 
     fig = stppy.visualization.plot_clusters_with_arrows(
         matched, run_pos, cluster_sizes=sizes_k, title=TITLE, classify_frac=TRAVEL_FRAC,

@@ -8,7 +8,7 @@ paper's detection runs on it:
     create_avalanche_filter(+-3 SD) -> detect_avalanches(min_duration 11)
     -> filter_avalanche_propagation(5/8 both-polarity neighbours) -> convert_to_peaks
 
-Arms: real (must reproduce the paper's 5108 avalanches), iaaft, ft, modewise, shift.
+Arms: real (the recordings themselves, for Figure 10), iaaft, ft, modewise, shift.
 
 Writes to SURROGATE_DIR/pools/ (paper_config.py):
     <arm>_peak_avalanches.pkl, <arm>_peak_avalanche_times.pkl   the clustering inputs

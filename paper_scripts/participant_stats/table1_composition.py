@@ -9,8 +9,8 @@ Pearson chi-square; null by permutation that respects the design:
   task     - shuffle task labels across a participant-session's events
   training - shuffle trained/untrained across participants (between-subject)
 
-Benjamini-Hochberg across the 3 factors. Also writes the per-cluster
-composition so Table 1 can be checked against it.
+Benjamini-Hochberg across the 3 factors. Also writes Table 1 itself
+(table1.md) and the per-cluster composition behind it (composition.csv).
 
     cd paper_scripts && python -m participant_stats.table1_composition
 
@@ -119,7 +119,7 @@ def main() -> None:
         raise ValueError(f"expected {N_CLUSTERS} clusters, got {ev['cluster'].nunique()}")
     paths.OUT_TABLE1.mkdir(parents=True, exist_ok=True)
     comp, res = composition(ev), composition_tests(ev)
-    comp.to_csv(paths.OUT_TABLE1 / "composition_check.csv")
+    comp.to_csv(paths.OUT_TABLE1 / "composition.csv")
     res.to_csv(paths.OUT_TABLE1 / "composition_tests.csv", index=False)
     md = table1(comp, ev)
     (paths.OUT_TABLE1 / "table1.md").write_text(md + "\n")

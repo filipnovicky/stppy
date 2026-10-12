@@ -11,8 +11,7 @@ and reported as a full 2x2.
 `travelling_polarity.py` loads the back-fitted sequences (`sequences_by_cluster.pkl`), applies the
 overlap removal of `main_analysis.remove_overlapping_bursts` and
 
-1. counts stable/oscillating sequences per cluster and session and checks them against Table 2
-   (prints "Counts match paper Table 2: yes");
+1. counts stable/oscillating sequences per cluster and session (as in Table 2);
 2. builds the cluster-level 2x2 per session, each cluster placed by its predominant polarity;
 3. builds the sequence-level 2x2 per session (Table 3, descriptive);
 4. runs a Fisher exact test on the cluster-level 2x2.

@@ -25,7 +25,7 @@ python -m pytest participant_stats                # tests
 | `build_recordings.py` | `participant_level/recordings.csv` | input for the rates |
 | `participant_counts.py` | `participant_counts/participant_counts.csv` | Table 2 participant column, N in Figure 3b caption, N of the cluster-8 test |
 | `participant_level.py` | `participant_level/` (`paired_tests.csv`, `models.csv`, `participant_level.png`) | mixed model OR / CI / N, rates per minute |
-| `table1_composition.py` | `table1/` (`composition_tests.csv`, `composition_check.csv`) | Table 1 test and correction family |
+| `table1_composition.py` | `table1/` (`table1.md`, `composition.csv`, `composition_tests.csv`) | Table 1 and its test |
 | `panel_e.py` | drawn by `main_analysis.py` into `figure3/main_results.pdf` | Figure 3e |
 
 Shared code: `paths.py` (all locations), `data.py` (loaders), `stats.py` (sign-flip, bootstrap,

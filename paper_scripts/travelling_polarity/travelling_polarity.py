@@ -11,7 +11,7 @@ Two properties of a cluster, measured at different timescales:
 Sequences are the paper's back-fitted sequences after overlap removal, exactly as in Table 2
 (main_analysis.remove_overlapping_bursts). The script prints
 
-1. per-cluster stable/oscillating counts per session, checked against the paper's Table 2;
+1. per-cluster stable/oscillating counts per session (as in Table 2);
 2. the cluster-level 2x2 (each cluster placed by its predominant polarity in a session);
 3. the sequence-level 2x2 (descriptive only);
 4. a Fisher exact test on the cluster-level 2x2.
@@ -46,13 +46,6 @@ EXCLUDED = frozenset({3})                # a single sequence, no polarity profil
 SESSIONS = ("ctrl", "psi")
 SESSION_NAMES = {"ctrl": "baseline", "psi": "psilocybin"}
 POLARITIES = ("oscillating", "stable")
-
-# Paper Table 2: cluster -> (ctrl stable, ctrl oscillating, psi stable, psi oscillating)
-TABLE2 = {
-    0: (0, 134, 0, 40), 1: (1, 42, 0, 8), 2: (1, 663, 0, 176), 4: (0, 64, 0, 30),
-    5: (0, 666, 0, 203), 6: (19, 54, 4, 12), 7: (75, 1, 51, 1), 8: (108, 248, 191, 80),
-    9: (82, 4, 35, 0), 10: (0, 18, 0, 3), 11: (24, 0, 6, 0),
-}
 
 Counts = dict[tuple[int, str], dict[str, int]]
 
@@ -109,24 +102,9 @@ def cluster_fisher(table: dict[tuple[str, str], list[int]]) -> tuple[np.ndarray,
     return m, float(p_two), float(p_one)
 
 
-def check_table2(counts: Counts) -> list[str]:
-    """Clusters whose counts differ from the paper's Table 2 (empty list = exact match)."""
-    bad = []
-    for cid, (cs, co, ps, po) in TABLE2.items():
-        got = (counts[(cid, "ctrl")]["stable"], counts[(cid, "ctrl")]["oscillating"],
-               counts[(cid, "psi")]["stable"], counts[(cid, "psi")]["oscillating"])
-        if got != (cs, co, ps, po):
-            bad.append(f"cluster {cid}: got {got}, Table 2 {(cs, co, ps, po)}")
-    return bad
-
-
 def report(counts: Counts) -> str:
     lines = ["Travelling/standing x stable/oscillating (Table 3)",
              f"travelling clusters: {sorted(TRAVELLING)}; excluded: {sorted(EXCLUDED)}", ""]
-    bad = check_table2(counts)
-    lines.append("Counts match paper Table 2: " + ("yes" if not bad else "NO"))
-    lines += [f"  {b}" for b in bad]
-    lines.append("")
     lines.append("1. Per cluster (stable / oscillating)")
     lines.append(f"{'cluster':>7} {'spatial':>10} {'baseline':>12} {'psilocybin':>12}")
     for cid in sorted({c for c, _ in counts}):

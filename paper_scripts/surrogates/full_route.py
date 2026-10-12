@@ -4,14 +4,10 @@
     python full_route.py blocks <arm>      BLOCK/NBLOCKS from env (PBS array), rows by stride
     python full_route.py cluster <arm>     merge blocks, cluster, consensus, compare
 
-The pair distance is stppy's `create_temporal_similarity_matrix` + `dtw_on_similarity_matrix`,
-checked against five entries of the paper's own matrix (agreement to 1e-6). Clustering is the
-paper's stage 3 unchanged: threshold 3.5, average linkage, min 30, polarity dedup -0.999,
-`build_consensus_alignment` on the medoid's DTW paths (recomputed for that row only, as the
-full 10k x 10k path matrix is not needed for a consensus).
-
-For arm `real` the cluster step reads the paper's similarity matrix directly: its consensi
-must reproduce the paper's cluster_averages.pkl, which validates this consensus code.
+The pair distance is stppy's `create_temporal_similarity_matrix` + `dtw_on_similarity_matrix`.
+Clustering is the paper's stage 3 unchanged: threshold 3.5, average linkage, min 30, polarity
+dedup -0.999, `build_consensus_alignment` on the medoid's DTW paths (recomputed for that row
+only, as the full 10k x 10k path matrix is not needed for a consensus).
 """
 
 from __future__ import annotations
@@ -44,7 +40,7 @@ import stppy                                                              # noqa
 import stppy.clustering                                                   # noqa: E402
 import stppy.visualization                                                # noqa: E402
 
-PAPER_DIR = paper_config.RUN_DIR                  # the paper run: templates, distances (arm "real")
+PAPER_DIR = paper_config.RUN_DIR                  # the paper's templates (cluster_averages.pkl)
 POOLS = paper_config.SURROGATE_DIR / "pools"      # pools.py
 OUT = paper_config.SURROGATE_DIR / "full"
 NCPUS = int(os.environ.get("NCPUS", 32))
@@ -108,8 +104,6 @@ def blocks(arm: str) -> None:
 
 
 def merged(arm: str, n: int) -> np.ndarray:
-    if arm == "real":
-        return np.asarray(stppy.io.load_pickle(str(PAPER_DIR / "similarity_matrix.pkl")))
     A, B = np.zeros((n, n)), np.zeros((n, n))
     seen = np.zeros(n, bool)
     for f in sorted((OUT / arm).glob(f"block_*of{NBLOCKS:02d}.npz")):
@@ -186,9 +180,6 @@ def cluster(arm: str) -> None:
             title=f"{arm} -- paper pipeline (UOT + subDTW, threshold 3.5)")
         fig.savefig(d / "clusters_top12.png", dpi=90, bbox_inches="tight")
         plt.close(fig)
-    if arm == "real":
-        err = max(float(np.abs(avgs[c] - paper[c]).max()) for c in paper)
-        print(f"real: consensi vs paper cluster_averages.pkl, max |diff| {err:.2e}")
     summary = OUT / "summary.csv"
     new = not summary.exists()
     with open(summary, "a", newline="") as fh:

@@ -1,18 +1,28 @@
-# Python
+# Python and build artefacts
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Package build
+*.py[cod]
 *.egg-info/
-dist/
 build/
-
-# Data and outputs
-*.pkl
-*.pdf
-*.txt
-
-# Jupyter checkpoints
+dist/
+.pytest_cache/
 .ipynb_checkpoints/
+
+# Data and outputs (locations: paper_scripts/paper_config.py)
+data/
+runs/
+results/
+*.pkl
+*.npz
+*.mp4
+paper_scripts/paper_config_local.py
+
+# Not part of the public repository: manuscript, review material, superseded run scripts
+*.pdf
+review/
+review.txt
+CLAUDE.md
+paper_scripts/regen/
+paper_scripts/STATISTICAL_REVISION.md
+paper_scripts/surrogates/backfit_surrogates.py
+paper_scripts/surrogates/run_backfit.pbs
+paper_scripts/spectral/run_spectra.pbs

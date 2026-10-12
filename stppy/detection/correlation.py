@@ -154,6 +154,12 @@ def detect_sequences_in_clusters(
     starts within `tolerance_samples` frames after the previous activation ends.
     This groups temporally adjacent pattern occurrences into sequences.
 
+    The rule is evaluated on integer sample indices (window start = round(time * sfreq),
+    pattern length = round(duration * sfreq)). In 0.1.0 it was evaluated in float
+    seconds, so a candidate starting exactly at, or one frame after, the end of the
+    current window was accepted or rejected depending on floating-point rounding of its
+    absolute position.
+
     Parameters
     ----------
     cluster_activation_times : dict
@@ -183,7 +189,9 @@ def detect_sequences_in_clusters(
         - 'dataset': dataset name
         - 'start_time': sequence start time (seconds)
         - 'end_time': sequence end time (seconds)
+        - 'start_sample', 'end_sample': the same in samples (end exclusive)
         - 'length': number of activations in sequence
+        - 'polarity': 'standing', 'rotating', 'long_rotating' or 'mixed'
 
     Examples
     --------
@@ -201,22 +209,18 @@ def detect_sequences_in_clusters(
     """
     sequences_by_cluster = {}
 
-    # Convert tolerance from samples to seconds
-    tolerance_sec = tolerance_samples / sfreq
-
     for cluster_id, activations in cluster_activation_times.items():
         cluster_sequences = []
-        cluster_duration = cluster_durations[cluster_id]
+        length = int(round(cluster_durations[cluster_id] * sfreq))
 
         for dataset_idx, times, polarities, correlations in activations:
             print(f"Processing cluster {cluster_id} out of {len(cluster_activation_times)}")
             # Filter by correlation threshold
             high_corr_mask = np.abs(correlations) > correlation_threshold
-            times_filtered = times[high_corr_mask]
+            starts = np.rint(np.asarray(times, dtype=float)[high_corr_mask] * sfreq).astype(np.int64)
             polarities_filtered = polarities[high_corr_mask]
-            correlations_filtered = correlations[high_corr_mask]
 
-            if len(times_filtered) < min_sequence_length:
+            if len(starts) < min_sequence_length:
                 continue
 
             # Combined inline suppression + sequence detection.
@@ -226,37 +230,30 @@ def detect_sequences_in_clusters(
             # not a precondition). If a sequence attempt fails (too short),
             # the next detection is tried as a new start — duplicates
             # are not discarded until a connection is confirmed.
-            # All times in seconds (cluster_duration, tolerance_sec).
+            # All positions in integer samples (starts, length, tolerance_samples).
             i = 0
-            while i < len(times_filtered):
+            while i < len(starts):
                 # Start new sequence attempt from detection i
-                current_sequence = {
-                    'times': [times_filtered[i]],
-                    'polarities': [polarities_filtered[i]],
-                    'correlations': [correlations_filtered[i]]
-                }
+                members = [i]
 
                 j = i + 1
-                while j < len(times_filtered):
-                    last_time = current_sequence['times'][-1]
-                    connect_deadline = last_time + cluster_duration + tolerance_sec
+                while j < len(starts):
+                    window_end = starts[members[-1]] + length
 
-                    if times_filtered[j] < last_time + cluster_duration:
+                    if starts[j] < window_end:
                         # Overlapping duplicate — skip
                         j += 1
-                    elif times_filtered[j] <= connect_deadline:
-                        # Connected — add to sequence, advance last_time
-                        current_sequence['times'].append(times_filtered[j])
-                        current_sequence['polarities'].append(polarities_filtered[j])
-                        current_sequence['correlations'].append(correlations_filtered[j])
+                    elif starts[j] <= window_end + tolerance_samples:
+                        # Connected — add to sequence, advance the window
+                        members.append(j)
                         j += 1
                     else:
                         # Beyond deadline — sequence is over
                         break
 
-                if len(current_sequence['times']) >= min_sequence_length:
+                if len(members) >= min_sequence_length:
                     seq = _finalize_sequence(
-                        current_sequence, cluster_duration,
+                        starts[members], polarities_filtered[members], length, sfreq,
                         dataset_names[dataset_idx]
                     )
                     cluster_sequences.append(seq)
@@ -271,25 +268,29 @@ def detect_sequences_in_clusters(
     return sequences_by_cluster
 
 
-def _finalize_sequence(sequence_data: Dict, cluster_duration: float, dataset_name: str) -> Dict:
+def _finalize_sequence(starts: np.ndarray, pols: np.ndarray, length: int, sfreq: float,
+                       dataset_name: str) -> Dict:
     """
     Convert sequence data into final sequence dictionary.
 
     Parameters
     ----------
-    sequence_data : dict
-        Dictionary with 'times', 'polarities', 'correlations' lists
-    cluster_duration : float
-        Duration of cluster pattern in seconds
+    starts : np.ndarray
+        Start sample of every activation in the sequence
+    pols : np.ndarray
+        Polarity (+1/-1) of every activation
+    length : int
+        Pattern length in samples
+    sfreq : float
+        Sampling frequency in Hz
     dataset_name : str
         Name of the dataset this sequence comes from
 
     Returns
     -------
     sequence : dict
-        Finalized sequence with dataset, start_time, end_time, length
+        Finalized sequence with dataset, start/end time and sample, length, polarity
     """
-    pols = sequence_data['polarities']
     n = len(pols)
 
     if n <= 1:
@@ -314,10 +315,14 @@ def _finalize_sequence(sequence_data: Dict, cluster_duration: float, dataset_nam
         else:
             polarity = 'mixed'
 
+    start_sample = int(starts[0])
+    end_sample = int(starts[-1]) + length
     return {
         'dataset': dataset_name,
-        'start_time': sequence_data['times'][0],
-        'end_time': sequence_data['times'][-1] + cluster_duration,
+        'start_time': start_sample / sfreq,
+        'end_time': end_sample / sfreq,
+        'start_sample': start_sample,
+        'end_sample': end_sample,
         'length': n,
         'polarity': polarity
     }

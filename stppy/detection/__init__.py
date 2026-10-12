@@ -18,8 +18,8 @@ from .filtering import (
 )
 from .correlation import (
     detect_sequences_by_correlation,
-    detect_sequences_in_clusters
-    )
+    detect_sequences_in_clusters,
+)
 
 __all__ = [
     # Threshold-based detection
@@ -32,5 +32,5 @@ __all__ = [
     'get_nearest_neighbors',
     # Correlation-based detection
     'detect_sequences_by_correlation',
-    'detect_sequences_in_clusters'
+    'detect_sequences_in_clusters',
 ]

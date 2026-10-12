@@ -13,10 +13,10 @@ Layout:
     Row 1 (sign-encoded): (a) cross-detection heatmap  (b) self vs competitor
     Row 2 (continuous):   (c) cross-detection heatmap  (d) self vs competitor
 
-Output: cluster_verification.pdf (to REGEN_OUTPUT_DIR, else the script dir).
+Output: cluster_verification.pdf and the Section 2.2.1 template-correlation summary
+(to paper_config.RESULTS_DIR / figure2).
 """
 
-import os
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -32,13 +32,12 @@ from psiconnect_utils import BASE_DIR
 
 
 def _out_dir() -> Path:
-    """Output dir for the regenerated figure; defaults to script dir so the
-    committed original is never overwritten unless REGEN_OUTPUT_DIR is set."""
-    d = os.environ.get('REGEN_OUTPUT_DIR')
-    return Path(d) if d else Path(__file__).parent
+    """Output directory for Figure 2 (paper_config.RESULTS_DIR / figure2)."""
+    import paper_config
+    return paper_config.results('figure2')
 
 
-# Paths (all relative to PSICONNECT_DATA_DIR)
+# Paths (all relative to paper_config.RUN_DIR)
 AVALANCHE_FILE = BASE_DIR / 'avalanches.pkl'
 DATASETS_FILE = BASE_DIR / 'datasets.pkl'
 PEAK_TIMES_FILE = BASE_DIR / 'avalanche_times.pkl'
@@ -379,6 +378,19 @@ def plot_violin(ax, cross_matrix, corr_accum, cluster_ids, n_clusters,
     ax.set_ylim(0, 1.0)
 
 
+def template_correlation_summary(corr_matrix, percentile=86):
+    """Section 2.2.1: statistics of the off-diagonal template correlations (Figure 2e)."""
+    v = corr_matrix[np.triu_indices(corr_matrix.shape[0], k=1)]
+    cut = np.percentile(v, percentile)
+    top = v[v >= cut]
+    return "\n".join([
+        f"Template correlations (Figure 2e), {v.size} pairs:",
+        f"  mean r = {v.mean():.3f} (mean |r| = {np.abs(v).mean():.3f}), SD = {v.std(ddof=1):.3f}, "
+        f"max r = {v.max():.3f}, mean + SD = {v.mean() + v.std(ddof=1):.3f}",
+        f"  {percentile}th percentile = {cut:.3f}; the {top.size} pairs at or above it average r = {top.mean():.3f}",
+    ])
+
+
 def print_summary(label, cross_matrix, cluster_ids, n_clusters):
     """Print summary statistics for a given method."""
     self_detect = np.diag(cross_matrix)
@@ -493,6 +505,9 @@ def main():
     # --- Summary stats ---
     print_summary("Sign-encoded", cross_bin, cluster_ids, n_clusters)
     print_summary("Continuous", cross_cont, cluster_ids, n_clusters)
+    summary = template_correlation_summary(cluster_corr)
+    print("\n" + summary)
+    (_out_dir() / 'template_correlations.txt').write_text(summary + "\n")
 
 
 if __name__ == '__main__':

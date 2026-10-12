@@ -20,6 +20,7 @@ paper_scripts/paper_config_local.py
 *.pdf
 review/
 review.txt
+CLAUDE.md
 paper_scripts/regen/
 paper_scripts/STATISTICAL_REVISION.md
 paper_scripts/surrogates/backfit_surrogates.py

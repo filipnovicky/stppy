@@ -5,8 +5,8 @@ Dataset: Wang, Duan, Dong, Ding & Lei (2022), "A test-retest resting, and cognit
 dataset during multiple subject-driven states", Scientific Data 9, 566
 (doi:10.1038/s41597-022-01607-9; OpenNeuro ds004148), eyes-closed resting recordings.
 
-Same recipe as stppy010_anphy61_n2/match_paper.py (RUN=ds4148_EC T=3.84 MIN_SIZE=10), which
-produced the submitted figure; only the title names the dataset. Hungarian one-to-one matching
+Same recipe as the script that produced the submitted figure (RUN=ds4148_EC T=3.84
+MIN_SIZE=10); only the title names the dataset. Hungarian one-to-one matching
 on the back-fit similarity (best-shift frame-wise |r|, surrogates/compare.py) over the shared
 channels, each matched consensus flipped to the template's polarity, pole arrows classified
 against the PsiConnect repertoire's longest arrow at 0.7, null = electrode-label permutation

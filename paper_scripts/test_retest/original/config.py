@@ -1,7 +1,7 @@
-"""Shared settings: stppy 0.1.0 quickstart on anphy_61 N2, broadband 1-40 Hz, 250 Hz.
+"""Shared settings of the test-retest (ds004148) run: stppy quickstart, broadband 1-40 Hz, 250 Hz.
 
 Detection, filtering, alignment and clustering use the quickstart notebook's own values
-(/home/novicky/stppy/stppy_quickstart.ipynb). The only addition is the pool cap: ~10k arrays
+(stppy_quickstart.ipynb in the repository root). The only addition is the pool cap: ~10k arrays
 including polarity flips, i.e. N_ORIG originals drawn evenly across subjects.
 """
 from __future__ import annotations
@@ -12,36 +12,33 @@ import io as _io
 import sys
 from pathlib import Path
 
-# The base env's `import stppy` resolves to stppy_version_1.0.0; pin v0.1.0 explicitly.
-sys.path.insert(0, "/home/novicky/stppy")
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[1]))                  # paper_scripts (paper_config)
+sys.path.insert(0, str(HERE.parents[2]))                  # repository root (stppy)
+
+import paper_config                                                       # noqa: E402
+
+# The analysis ran with stppy 0.1.0; its detection, alignment and clustering code is identical
+# to 0.2.0 (see ../README.md), so either version reproduces the results.
 import stppy                                                              # noqa: E402
 
-if getattr(stppy, "__version__", None) != "0.1.0":
-    raise ImportError(f"expected stppy 0.1.0, got {stppy.__file__}")
+if not str(getattr(stppy, "__version__", "")).startswith(("0.1.", "0.2.")):
+    raise ImportError(f"expected stppy 0.1.x or 0.2.x, got {stppy.__file__}")
 
-HERE = Path(__file__).resolve().parent
-
-# RUN selects dataset x stage. anphy61_N2 is the original run and keeps its outputs at HERE;
-# every other run writes under HERE/runs/<RUN>/ with a positions JSON built from its own files.
+# RUN selects dataset x stage; outputs go to paper_config.TEST_RETEST_DIR with a positions JSON
+# built from the recordings themselves.
 RUNS = {
-    "anphy61_N2": dict(data_dir="/home/novicky/complete_analysis_stppy100/data/anphy_61_broadband",
-                       stage="N2", key="signal", mm_to_cm=False,
-                       positions="/home/novicky/complete_analysis_stppy100/data/"
-                                 "anphy_61_broadband_electrode_positions.json"),
-    "anphy61_W": dict(data_dir="/home/novicky/anphy_preprocessed_bb", stage="W", key="data",
-                      mm_to_cm=False, positions=None),
-    "anphy83_W": dict(data_dir="/home/novicky/anphy_83_preprocessed", stage="W", key="data",
-                      mm_to_cm=False, positions=None),  # cm despite README "mm"; 1000 Hz -> 250 in detect
-    # ds004148 rest, cleaned by ds004148_preprocessed/preprocess_ds004148.py (62 ch, 1-40 Hz, 250 Hz).
-    # Positions are mm in the MNE head frame already (x=right, y=anterior), so no plot rotation.
-    "ds4148_EC": dict(data_dir="/home/novicky/ds004148_preprocessed/data", stage="EC", key="data",
+    # ds004148 rest, cleaned by preprocess_ds004148.py (62 ch, 1-40 Hz, 250 Hz) into
+    # paper_config.DS4148_PREPROCESSED. Positions are mm in the MNE head frame already
+    # (x=right, y=anterior), so no plot rotation.
+    "ds4148_EC": dict(data_dir=paper_config.DS4148_PREPROCESSED, stage="EC", key="data",
                       mm_to_cm=False, positions=None, frame="mne"),
 }
-RUN = os.environ.get("RUN", "anphy61_N2")
+RUN = os.environ.get("RUN", "ds4148_EC")
 if RUN not in RUNS:
     raise ValueError(f"RUN must be one of {sorted(RUNS)}, got {RUN!r}")
 _R = RUNS[RUN]
-OUT = HERE if RUN == "anphy61_N2" else HERE / "runs" / RUN
+OUT = paper_config.TEST_RETEST_DIR
 DATA_DIR = Path(_R["data_dir"])
 STAGE = _R["stage"]
 SIGNAL_KEY = _R["key"]
@@ -55,8 +52,8 @@ MIN_ACTIVE_NEIGHBORS = 5
 N_ORIG = 5000                     # x2 with flips = 10,000 arrays
 SEED = 0
 
-# Notebook default 3.5 leaves every event a singleton on this data (median distance 19.4);
-# the user chose 5 on 2026-09-29. Override with CLUSTER_THRESHOLD=<t>.
+# The notebook's 3.5 leaves every event a singleton on this data (median distance 19.4). The
+# paper's candidates use CLUSTER_THRESHOLD=3.84 (the same distance quantile as 3.5, README step 6-7).
 CLUSTER_THRESHOLD = float(os.environ.get("CLUSTER_THRESHOLD", 5.0))
 _TTAG = f"t{CLUSTER_THRESHOLD:g}"
 CLUSTER_METHOD = "average"
@@ -100,12 +97,16 @@ def write_positions() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     pos = {c: dict(x=float(p[0]), y=float(p[1]), z=float(p[2])) for c, p in zip(names, xyz)}
     Path(POSITIONS).write_text(json.dumps(pos, indent=1))
+    # The same positions in metres (as the PsiConnect montage), read by plot_test_retest_clusters.py.
+    pos_m = {c: {k: v / 1000.0 for k, v in p.items()} for c, p in pos.items()}
+    (OUT / "electrode_positions_m.json").write_text(json.dumps(pos_m, indent=1))
 
 
 def plot_positions() -> str:
     """Positions JSON for stppy topomaps, which read x/y/z as the MNE head frame (x=right,
-    y=anterior). anphy positions are in the .pos frame (x=anterior, y=left), so they are
-    rotated here: x_mne = -y_pos, y_mne = x_pos. Distances (ground metric) are unaffected."""
+    y=anterior). Positions in a .pos frame (x=anterior, y=left) are rotated here:
+    x_mne = -y_pos, y_mne = x_pos; ds004148 (frame='mne') needs no rotation. Distances
+    (ground metric) are unaffected."""
     import json
     out = OUT / "electrode_positions_mne_plot.json"
     pos = json.loads(Path(POSITIONS).read_text())

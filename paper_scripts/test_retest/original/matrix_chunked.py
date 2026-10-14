@@ -8,7 +8,7 @@ only writes at the end. Here each row's column range is cut into chunks of bound
 are checkpointed every CKPT_SEC, so a killed job resumes instead of starting over. The pair
 distance is matrix_block.pair_distance, and the output file is the one merge.py reads.
 
-    RUN=anphy61_W BLOCK=13 NBLOCKS=16 NCPUS=32 python matrix_chunked.py
+    RUN=ds4148_EC BLOCK=13 NBLOCKS=16 NCPUS=32 python matrix_chunked.py
 """
 from __future__ import annotations
 

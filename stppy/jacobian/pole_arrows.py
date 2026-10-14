@@ -89,7 +89,7 @@ def pole_arrows(
 
 # A cluster is travelling if its stronger pole's time-averaged arrow reaches this
 # fraction of the reference (the longest arrow among the clusters being compared).
-TRAVELLING_FRAC = 0.75
+TRAVELLING_FRAC = 0.70
 
 
 def classify_propagation(

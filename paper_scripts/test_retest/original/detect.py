@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Stage 1: quickstart detection for one recording of RUN (PBS array index = recording).
 
-    RUN=anphy61_W REC_INDEX=1 python detect.py
+    RUN=ds4148_EC REC_INDEX=1 python detect.py
 """
 from __future__ import annotations
 

@@ -10,10 +10,12 @@
   are unchanged.
 - **Fix: overlap removal** in `paper_scripts/main_analysis.py` is measured in integer samples too.
 - **New `stppy.jacobian`**: Hilbert phase gradient on irregular electrode layouts, one movement arrow
-  per pole (`pole_arrows`) and the travelling/standing label (`classify_propagation`).
+  per pole (`pole_arrows`) and the travelling/standing label (`classify_propagation`; travelling if
+  the stronger pole reaches 0.7 of the longest arrow, `TRAVELLING_FRAC`).
 - **New `stppy.visualization.plot_clusters_with_arrows`**: all clusters in one figure with their
   movement arrows.
 - **Paper reproduction**: `stppy_quickstart.ipynb` runs the whole analysis of the paper and then every
   script in `paper_scripts/`; locations are set in `paper_scripts/paper_config.py`, and
-  `environment.yml` reproduces the numbers bit for bit.
+  `environment.yml` reproduces the numbers bit for bit. The test-retest analysis
+  (`paper_scripts/test_retest/`) runs from the public OpenNeuro ds004148 download.
 - Tests (`pytest`), `LICENSE` (MIT); dependencies reduced to those actually imported.

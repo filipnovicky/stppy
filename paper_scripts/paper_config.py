@@ -15,6 +15,8 @@ DISTANCE_DIR     UOT + subDTW distances (similarity_matrix.pkl, path_matrix.pkl 
 RESULTS_DIR      figures, tables and statistics (one subfolder per analysis)
 SURROGATE_DIR    IAAFT surrogate pipeline (surrogates/README.md): pools/, full/
 TEST_RETEST_DIR  test-retest dataset run (test_retest/README.md)
+DS4148_BIDS      raw OpenNeuro ds004148 (BIDS), input of test_retest/original/preprocess_ds004148.py
+DS4148_PREPROCESSED  cleaned ds004148 recordings written by preprocess_ds004148.py
 """
 
 import os
@@ -43,6 +45,8 @@ DISTANCE_DIR = _path("DISTANCE_DIR", REPO / "runs" / "distances")
 RESULTS_DIR = _path("RESULTS_DIR", RUN_DIR / "results")
 SURROGATE_DIR = _path("SURROGATE_DIR", REPO / "runs" / "surrogates")
 TEST_RETEST_DIR = _path("TEST_RETEST_DIR", REPO / "runs" / "test_retest")
+DS4148_BIDS = _path("DS4148_BIDS", REPO / "data" / "ds004148")
+DS4148_PREPROCESSED = _path("DS4148_PREPROCESSED", REPO / "data" / "ds004148_preprocessed")
 
 
 def results(name: str) -> Path:

@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """ds004148 resting EEG (eyes closed / eyes open) -> clean broadband 1-40 Hz at 250 Hz.
 
-Mirrors the anphy v4 pipeline (stppy_version_1.0.0/scripts/preprocessing_v4_anphy.py) so the
-two datasets are cleaned the same way:
+Preprocessing steps (Appendix A):
  * load raw BIDS BrainVision (61 EEG, online reference FCz, 500 Hz, 300 s),
  * restore FCz as a channel and average-reference (62 channels, as the authors' chanlocs62),
  * resample to 250 Hz,
@@ -28,8 +27,11 @@ import numpy as np
 from mne_icalabel import label_components
 from scipy.stats import kurtosis
 
-BIDS = Path("/store/projects/PUBLIC_DATASETS/ds004148")
-OUT = Path("/home/novicky/ds004148_preprocessed/data")
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # paper_scripts (paper_config)
+import paper_config                                                       # noqa: E402
+
+BIDS = paper_config.DS4148_BIDS              # raw OpenNeuro ds004148
+OUT = paper_config.DS4148_PREPROCESSED
 TASKS = [("EC", "eyesclosed"), ("EO", "eyesopen")]
 SFREQ_TARGET = 250
 FILTER_LO, FILTER_HI = 1.0, 40.0

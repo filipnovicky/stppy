@@ -55,7 +55,7 @@ def plot_clusters_with_arrows(
     label_fontsize: float = 15,
     time_fontsize: float = 14,
     classify: bool = True,
-    classify_frac: float = 0.75,
+    classify_frac: float = 0.70,
     reference: Optional[float] = None,
 ) -> plt.Figure:
     """One row per cluster, one column per frame, with a movement arrow per pole.
